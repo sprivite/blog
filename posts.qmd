@@ -1,0 +1,8 @@
+---
+title: ""
+listing:
+  contents: blog
+  categories: true
+  sort-ui: [title, date]
+  filter-ui: [title, date]
+---

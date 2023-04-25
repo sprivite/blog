@@ -1,0 +1,35 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: ""
+  navbar:
+    background: primary
+    search: true
+    left:
+      - text: "About"
+        file: index.qmd
+      - text: "Posts"
+        file: posts.qmd
+    right:
+      - icon: linkedin
+        href: https://linkedin.com/in/stephen.privitera
+      - icon: github
+        href: https://github.com/sprivite
+  # sidebar:
+    # style: "docked"
+    # search: true
+
+
+format:
+  html:
+    theme:
+      light: [flatly]
+      dark: [darkly]
+    code-copy: true
+    code-overflow: wrap
+    toc: true
+
+
+

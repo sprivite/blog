@@ -1,2 +1,1 @@
-# portfolio
-A portfolio of data science capabilities
+# Stephen Privitera's homepage

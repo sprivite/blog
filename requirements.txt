@@ -1,0 +1,9 @@
+jupyter
+jupyterlab
+matplotlib
+plotly
+bokeh
+seaborn
+pandas
+numpy
+lifelines
