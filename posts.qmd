@@ -5,4 +5,5 @@ listing:
   categories: true
   sort-ui: [title, date]
   filter-ui: [title, date]
+  fields: [image, categories, date, title, description, reading-time]
 ---
