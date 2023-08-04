@@ -2,6 +2,7 @@
   {
     "listing": "/posts.html",
     "items": [
+      "/blog/hyperparameter_optimization.html",
       "/blog/regularization.html",
       "/blog/ant_colony_optimization.html"
     ]

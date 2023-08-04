@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2023-05-26">
+<meta name="dcterms.date" content="2023-06-07">
 
 <title>Regularization as a Feature Selection Method</title>
 <style>
@@ -177,7 +177,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">May 26, 2023</p>
+      <p class="date">June 7, 2023</p>
     </div>
   </div>
   
@@ -187,7 +187,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<p>Often thought of as a method to prevent overfitting, regularization can also be used to select the most important features from a model, as demonstrated in this post.</p>
+<p>Often thought of as a method to prevent overfitting, regularization can also be used to select the most important features from a model.</p>
 <section id="what-is-regularization" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-regularization">What is regularization?</h2>
 <p>In any machine learning setting, you invariably find yourself with a set of parameters <span class="math inline">\(\vec{\beta}\)</span>, which you wish to estimate from the data <span class="math inline">\(\mathcal{D}\)</span>. A standard approach to estimating <span class="math inline">\(\vec{\beta}\)</span> is to write down a likelihood function <span class="math inline">\(P(\mathcal{D}|\mathbf{\beta})\)</span> and maximize the likelihood with respect to <span class="math inline">\(\vec{\beta}\)</span>. This approach is called <em>maximum likelihood estimation</em>.</p>
@@ -198,7 +198,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><span class="math display">\[ \text{loss} = -\log L(\vec{\beta}) - \log P(\vec{\beta}). \]</span></p>
 <p>We can ignore the <span class="math inline">\(P(\mathcal{D})\)</span> term because it is constant with respect to <span class="math inline">\(\vec{\beta}\)</span>. If we take a constant prior, <span class="math inline">\(P(\vec{\beta}) = 1\)</span>, then the second term on the right hand side can be ignored and we have the standard maximum likelihood approach.</p>
 <p>However, there are very good reasons to enforce a non-constant prior on your parameters. For one, we almost always have useful prior knowledge. Consider a simple linear model <span class="math inline">\(y \sim \vec{\beta}\cdot \vec{x}\)</span>. A standard first step in such an inference problem is to transform <span class="math inline">\(\vec{x}\)</span> and <span class="math inline">\(y\)</span> such that they have zero mean and unit variance. If we do that, then we can already with fairly high confidence rule out large regions of parameter space. For instance, taking <span class="math inline">\(\beta_i = 100\)</span> would mean that a unit change in <span class="math inline">\(x_i\)</span> would increase <span class="math inline">\(y\)</span> by 100 standard deviations. This behavior seems unlikely in almost any setting.</p>
-<p>We can encode this belief in a prior. The prior tells the model to avoid considering regions of parameter space with <span class="math inline">\(|\beta_i| \sim 100\)</span>, unless there is <em>overwhelming</em> evidence from the data (encoded in the likelihood). This can prevent you from falling into the trap of “overfitting” a model, i.e., seeing a pattern in the data that isn’t really there. The model may say “hey you know if I set <span class="math inline">\(\beta_2 = 100\)</span>, I can explain pretty much everything in the data.” But the prior comes in and says “this conflicts with my expectations, I need more evidence of that before I can believe you.”</p>
+<p>We can encode this belief in a prior. The prior tells the model to avoid considering regions of parameter space with <span class="math inline">\(|\beta_i| \gtrsim 100\)</span>, unless there is <em>overwhelming</em> evidence from the data (encoded in the likelihood). This can prevent you from falling into the trap of “overfitting” a model, i.e., seeing a pattern in the data that isn’t really there. The model may say “hey you know if I set <span class="math inline">\(\beta_2 = 100\)</span>, I can explain pretty much everything in the data.” But the prior comes in and says “this conflicts with my expectations, I need more evidence of that before I can believe you.”</p>
 <p>The devil is, as always, in the details. There are multiple ways to encode the preference for smaller parameters mathematically and which approach you choose turns out to make a big difference in the kind of solutions you obtain. Here, I want to explore two different choices of prior beliefs, both consistent with the preference for smaller parameters, and illustrate how these choices impact the inferred model parameters.</p>
 </section>
 <section id="l1-and-l2-regularization" class="level1">
