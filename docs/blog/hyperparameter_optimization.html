@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2023-08-04">
+<meta name="dcterms.date" content="2023-08-07">
 
 <title>Hyperparameter Optimization and Propensity Score Matching</title>
 <style>
@@ -192,7 +192,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">August 4, 2023</p>
+      <p class="date">August 7, 2023</p>
     </div>
   </div>
   
@@ -202,7 +202,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<p>Despite the intimidating names given to methods like <em>tree-structured Parzen estimation</em>, efficient hyperparameter optimization doesn’t need to be complicated.</p>
+<p>Despite the intimidating names given to methods like <em>tree-structured Parzen estimation</em> and <em>Gaussian process regression</em>, hyperparameter optimization algorithms are extremely intuitive.</p>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
 <section id="hyperparameter-optimization" class="level3">
@@ -231,7 +231,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="simulation-setup">Simulation Setup</h2>
 <p>To start, we’ll simulate a toy dataset consisting of two covariates. To make the example more tangible, we’ll give the covariates names. One will be BMI, the other will be eGFR. We’re interested in studying the effect of a certain medication on a patient population as seen in electronic health record databases. The problem: both BMI and eGFR influence the treatment decision by practicing physicians. The medication is not prescribed to patients that are extremely overweight, nor to patients that are extremely underweight. Furthermore, the medication is not prescribed to patients with poor kidney function (low eGFR), nor is it prescribed to patients with normal kidney function (high eGFR). As a result of the interaction between these covariates and the treatment decision, we cannot simply compared treated and untreated patients. We have to correct for these systematic differences through matching.</p>
 <p>Below we show the distribution of patients and the simulated propensity score. The propensity score shown here represents the “true” (unknown) propensity score that generates the treatment decision. Our goal here is to estimate this quantity.</p>
-<div class="cell" data-execution_count="91">
+<div class="cell" data-execution_count="2">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_bmi_egfr_blob(n_samples: <span class="bu">int</span>) <span class="op">-&gt;</span> pd.DataFrame:</span>
@@ -259,7 +259,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> expit( <span class="op">-</span> (x_<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> y_<span class="op">**</span><span class="dv">2</span> ) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell" data-execution_count="92">
+<div class="cell" data-execution_count="4">
 <div class="cell-output cell-output-display">
 <div id="fig-input-distributions" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -270,14 +270,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Given this form for the propensity score, we can now sample the realized treatment group assignment. In doing so, we get the distributions shown below for BMI and eGFR for the treated and untreated groups. We see that there are significant differences between the treated and untreated group other than the treatment. It would therefore not be fair to directly compare the health outcomes of the groups and then attribute differences in outcomes to the treatment.</p>
-<div class="cell" data-execution_count="93">
+<div class="cell" data-execution_count="5">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>treat_indicator <span class="op">=</span> (np.random.rand(n_samples) <span class="op">&lt;=</span> propensity_score).astype(<span class="bu">int</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>treat_label <span class="op">=</span> [<span class="st">'treated'</span> <span class="cf">if</span> t <span class="cf">else</span> <span class="st">'untreated'</span> <span class="cf">for</span> t <span class="kw">in</span> treat_indicator]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell preview-image" data-execution_count="95">
+<div class="cell preview-image" data-execution_count="7">
 <div class="cell-output cell-output-display">
 <div id="fig-intro" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -288,8 +288,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The number of patients in each group is given as below. The goal will be to choose a subset of patients from the untreated group such that distributions of BMI and eGFR in the chosen subset match the distributions in the treated group.</p>
-<div class="cell" data-execution_count="96">
-<div class="cell-output cell-output-display" data-execution_count="96">
+<div class="cell" data-execution_count="8">
+<div class="cell-output cell-output-display" data-execution_count="8">
 <div>
 
 
@@ -323,7 +323,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="matching-on-the-true-propensity-score" class="level2">
 <h2 class="anchored" data-anchor-id="matching-on-the-true-propensity-score">Matching on the true propensity score</h2>
 <p>In practice, we never have direct knowledge of the propensity score. But since we do in our simulation, let’s first check what happens when we match using the true propensity score. Namely, for each patient in the treated group, we select a corresponding patient from the untreated group with a similar propensity score. The resulting population is denoted by the label “matched” in the figure below. This solution represents the best we can hope to achieve with propensity score matching.</p>
-<div class="cell preview-image" data-execution_count="82">
+<div class="cell preview-image" data-execution_count="9">
 <div class="cell-output cell-output-display">
 <div id="fig-true-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -338,7 +338,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="matching-on-estimated-propensity-score" class="level2">
 <h2 class="anchored" data-anchor-id="matching-on-estimated-propensity-score">Matching on estimated propensity score</h2>
 <p>Now let’s see how well we can perform matching by estimating the propensity score. To start, let’s try using a logistic regression to estimate the propensity score. As the logistic regression has linear decision boundaries, it should be clear that such a model would not be expected to perform well on this particular data, and indeed that is what we see.</p>
-<div class="cell preview-image" data-execution_count="84">
+<div class="cell preview-image" data-execution_count="11">
 <div class="cell-output cell-output-display">
 <div id="fig-log-reg-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -349,7 +349,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>As seen in the left hand plot above, the model estimates the true PS very poorly. As a result, when we match using the estimated PS, we get very poor balance, as seen below. Although the distribution on BMI looks somewhat balanced, eGFR in the matched population is left completely unbalanced. This result is simply a consequence of our modeling choice, not a breakdown of the PS approach, since we know from above that matching works when we know the true PS.</p>
-<div class="cell preview-image" data-execution_count="86">
+<div class="cell preview-image" data-execution_count="12">
 <div class="cell-output cell-output-display">
 <div id="fig-log-reg-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -359,8 +359,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Since it’s clear that the propensity score has some non-linearity to it, it make sense to next try using some sort of model that can capture this non-linearity. Let’s try therefore a random forest model for the propensity score. To illustrate the point, I will purposely pick very poor hyperparameters for the random forest: max_depth=2, n_estimators=2. The resulting estimation for PS is shown below. Although the estimation is still quite poor, the random forest does seem to better model the PS than the logistic regression.</p>
-<div class="cell preview-image" data-execution_count="88">
+<p>Since it’s clear that the propensity score has some non-linearity to it, it make sense to next try using some sort of model that can capture this non-linearity. Let’s try therefore a random forest model for the propensity score. To illustrate the point that bad hyperparameters can impact performance, I will purposely pick very poor hyperparameters for the random forest: max_depth=2, n_estimators=2 (for this toy problem, the default hyperparameters perform quite well, but in realistic problems this may not be the case). The resulting estimation for PS is shown below. Although the estimation is still quite poor, the random forest does seem to better model the PS than the logistic regression.</p>
+<div class="cell preview-image" data-execution_count="13">
 <div class="cell-output cell-output-display">
 <div id="fig-rf-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -371,7 +371,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The poor performance of this choice of hyperparameters is also reflected in the resulting matched distributions, shown below. Although better than the logistic regression, it’s clear that the matching is far from the ideal case of matching on the true PS. So we have some work left.</p>
-<div class="cell preview-image" data-execution_count="98">
+<div class="cell preview-image" data-execution_count="14">
 <div class="cell-output cell-output-display">
 <div id="fig-rf-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -387,7 +387,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="random-search" class="level3">
 <h3 class="anchored" data-anchor-id="random-search">Random search</h3>
 <p>We’ve seen that the choice of hyperparameters makes a difference in the achieved balance. So let’s try a few more choices of hyperparameters and see if we can find some improvements in the balance. For the logistic regression, we randomly sample a few values for the regularization strength <span class="math inline">\(C\)</span>; for the random forest model, we randomly sample a few values for the max_depth, keeping the n_estimators fixed to 2, as before. The resulting balance (roughly, the total area between the 1D marginal distributions) as a function of these hyperparameters is shown below.</p>
-<div class="cell preview-image" data-execution_count="279">
+<div class="cell preview-image" data-execution_count="190">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-random" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -398,12 +398,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>After trying a few values of hyperparameters, we’ve realized that training models takes a long time and we can only try a limited number of hyperparameters. If given only one more chance, which model would you pick? So far it looks like the random forest model is the better bet and furthermore, it might be useful to try a max depth between 5 and 15, as this seems to be the region of hyperparameter space where the balance is the best.</p>
-<p>This simple calculation, which you just did in your brain instinctively, is really <em>all</em> there is to hyperparameter optimization by tree-structured Parzen estimation (TPE), at least conceptually. For each model (logistic regression or random forest), we construct a “hypermodel” which predicts as a function of the various hyperparameters the expected balance. Our brains created these hypermodels automatically. If you proceed to make these models formal, then you’ll arrive eventually at TPE.</p>
+<p>This simple calculation, which you just did in your brain instinctively, is really all there is to hyperparameter optimization by tree-structured Parzen estimation (TPE) or Gaussian process regression (GPR), at least conceptually. For each model (logistic regression or random forest), we construct a “hypermodel” which predicts the expected balance on unseen values of the hyperparameters. We then use these hypermodels to guess a good set of hyperparameters to test next. The various methods refer simply to different ways of predicting what values of balance lie in between the sampled points and methods for choosing the next point to sample.</p>
+<p>As an illustration, we show the result of fitting a Gaussian process to the sampled data points. We perform one GPR per model class (logistic regression or random forest). The plot below shows the mean +/- 1 standard deviation range for the predicted values on the intermediate points. The Gaussian process is simply a method of interpolation on the known points with an additional measure of uncertainty in the interpolated values.</p>
+<div class="cell preview-image" data-execution_count="192">
+<div class="cell-output cell-output-display">
+<div id="fig-hyperopt-gp-fit" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="hyperparameter_optimization_files/figure-html/fig-hyperopt-gp-fit-output-1.png" class="img-fluid figure-img"></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;9: Gaussian process fit to the sampled hyperparameters for each model type.</figcaption><p></p>
+</figure>
+</div>
+</div>
+</div>
+<p>TPE works in a similar way, except instead of directly modeling <span class="math inline">\(P\)</span>(balance|hyperparameters) as the GPR does, TPE models the distributions of “good” and “bad” points. That is, TPE splits all the sampled points into two categories based on some arbitrary threshold <span class="math inline">\(B^*\)</span>. Those points with balance <span class="math inline">\(&gt; B^*\)</span> are considered “bad” and those with balance <span class="math inline">\(\leq B^*\)</span> are considered “good”. We then form a KDE for the good and bad points. And we do this for each model class. From these distributions, we sample the next hyperparameter according to the ratio <span class="math inline">\(P\)</span>(good|hyperparameter) / <span class="math inline">\(P\)</span>(bad|hyperparameter). The resulting sampling distribution is shown below for <span class="math inline">\(B^*=0.125\)</span>. As we can see in the right-hand plot, the TPE approach seems to encode our intuition that sampling a point max_depth <span class="math inline">\(\in\)</span> [5, 15] next is a good idea.</p>
+<div class="cell preview-image" data-execution_count="225">
+<div class="cell-output cell-output-display">
+<div id="fig-hyperopt-tpe-fit" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="hyperparameter_optimization_files/figure-html/fig-hyperopt-tpe-fit-output-1.png" class="img-fluid figure-img"></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;10: Sampling distribution obtained by fitting Gaussian KDEs to the observed values of the balance for each type.</figcaption><p></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="tree-structured-parzen-estimator" class="level3">
 <h3 class="anchored" data-anchor-id="tree-structured-parzen-estimator">Tree-structured Parzen estimator</h3>
-<p>So, now that we understand what TPE is doing at a very high level, let’s see if we can use it to achieve even better balance. We will use the <a href="http://hyperopt.github.io/hyperopt/">hyperopt</a> library. To make things a little more interesting, we’ll optimize not just over model choice (LogisticRegression or RandomForest), <span class="math inline">\(C\)</span> and max_depth, but also over the penalty type (L1 or L2) for logistic regression, n_estimators and min_samples_leaf for random forest (see <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html">here</a> for a description of these parameters). After running the TPE sampler for 1000 iterations, the code returns the best parameters found, shown below.</p>
-<div class="cell" data-execution_count="244">
+<p>So, now that we understand what the “fancy” hyperparameter optimization methods are doing at a very high level, let’s see if we can use them to achieve even better balance. We will use the implementation of TPE from the <a href="http://hyperopt.github.io/hyperopt/">hyperopt</a> library. To make things a little more interesting, we’ll optimize not just over model choice (LogisticRegression or RandomForest), <span class="math inline">\(C\)</span> and max_depth, but also over the penalty type (L1 or L2) for logistic regression, n_estimators and min_samples_leaf for random forest (see <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html">here</a> for a description of these parameters). After running the TPE sampler for 1000 iterations, the code returns the best parameters found, shown below.</p>
+<div class="cell" data-execution_count="27">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define a search space</span></span>
@@ -435,19 +457,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Best model found:
-    max_depth           24.0
+    max_depth           8.0
     min_samples_leaf    211.0
     model               1
-    n_estimators        6.0</code></pre>
+    n_estimators        10.0</code></pre>
 </div>
 </div>
 <p>Let’s take a look at what the sampler did to arrive at this result. Below, I show how the sampling of the hyperparameter space evolves over time using the TPE method.</p>
-<div class="cell preview-image" data-execution_count="272">
+<div class="cell preview-image" data-execution_count="34">
 <div class="cell-output cell-output-display">
 <div id="fig-parameter-sampling" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-parameter-sampling-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;9: An illustration of how the sampling of hyperparameters varies over time in TPE for the random forest hyperparameters.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;11: An illustration of how the sampling of hyperparameters varies over time in TPE for the random forest hyperparameters.</figcaption><p></p>
 </figure>
 </div>
 </div>
@@ -456,23 +478,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>We also see that the sampler explores the space rather uniformly in the beginning (first ~200 iterations; this is tunable). The sampler is doing this because it needs something to train its hypermodels on. Once it has some data to work with, the sampler can start taking more educated guesses about where to explore next. We see this in the time series of the samples for max_depth, n_estimators and min_samples_leaf. For later times, the sampler almost never chooses max_depth &lt; 10. It seems to have figured out that this choice doesn’t have a good chance of working out. Similarly, the sampler stops choosing n_estimators &gt; 50 after a while.</p>
 <p>Note that the sampler never <em>completely</em> stops exploring any region of parameter space. Especially as the number of hyperparameter dimensions grows large, there will always be unexplored regions of parameter space. Therefore, this occasional random exploration of the space, even when a good objective value seems unlikely, is useful to avoid missing out.</p>
 <p>Finally, let’s see what the matching results look like! Below, I show the resulting PS estimation using the best values for the hyperparameters found by the TPE sampler. Although the results are not perfect, we have clearly greatly improved upon the initial results.</p>
-<div class="cell preview-image" data-execution_count="197">
+<div class="cell preview-image" data-execution_count="35">
 <div class="cell-output cell-output-display">
 <div id="fig-main" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-main-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;10: Result of using TPE to find best hyperparameters to model propensity score.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;12: Result of using TPE to find best hyperparameters to model propensity score.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Furthermore, as shown below, the resulting matched populations look great! I would argue this match is hard to distinguish from the match above using the true propensity score.</p>
-<div class="cell preview-image" data-execution_count="195">
+<div class="cell preview-image" data-execution_count="36">
 <div class="cell-output cell-output-display">
 <div id="fig-tpe-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-tpe-ps-match-balance-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;11: Achieved balance of PS matching using best model achieved from TPE.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;13: Achieved balance of PS matching using best model achieved from TPE.</figcaption><p></p>
 </figure>
 </div>
 </div>
@@ -481,7 +503,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="conclusion" class="level2">
 <h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>Hyperparameter optimzation is an important step in any machine learning workflow. Random sampling of hyperparameters is a very inefficient way to optimize hyperparameters, as our eyes can very quickly tell us. Tree-structured Parzen estimation is a nice alternative to random hyperparameter search, with easy-to-use Python implementations readily available. Although the method sounds intimidating, it’s really nothing more than a formalization of what we would naturally do anyway if we were to manually choose hyperparameters to test.</p>
+<p>Hyperparameter optimzation is an important step in any machine learning workflow. Random sampling of hyperparameters is a very inefficient way to optimize hyperparameters, as our eyes can very quickly tell us. Tree-structured Parzen estimation and Gaussian process regression are a nice alternatives to random hyperparameter search, with easy-to-use Python implementations readily available. Although the methods sound intimidating, it’s really nothing more than a formalization of what we would naturally do anyway if we were to manually choose hyperparameters to test.</p>
 </section>
 <section id="further-reading" class="level2">
 <h2 class="anchored" data-anchor-id="further-reading">Further Reading</h2>
