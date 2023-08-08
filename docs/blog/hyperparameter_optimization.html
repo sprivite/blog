@@ -423,7 +423,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>After trying a few values of hyperparameters, we’ve realized that training models takes a long time and we can only try a limited number of hyperparameters. Now that we have some information about how the achieved balance depends on our hyperparameters, it would make sense to use this information to choose the next point! If given only one more chance, which model would you pick? So far it looks like the random forest model is the better bet and furthermore, it might be useful to try a max depth between 5 and 15, as this seems to be the region of hyperparameter space where the balance is the best.</p>
 <p>This simple calculation, which you just did in your brain instinctively, is really all there is to hyperparameter optimization by tree-structured Parzen estimation (TPE) or Gaussian process regression (GPR), at least conceptually. For each model (logistic regression or random forest), we construct a “hypermodel” which predicts the expected balance on unseen values of the hyperparameters. We then use these hypermodels to guess a good set of hyperparameters to test next. The various methods refer simply to different ways of predicting what values of balance lie in between the sampled points and methods for choosing the next point to sample.</p>
 <p>As an illustration, we show the result of fitting a Gaussian process to the sampled data points. We perform one GPR per model class (logistic regression or random forest). The plot below shows the mean +/- 1 standard deviation range for the predicted values on the intermediate points. We see that the Gaussian process is simply interpolating on the known points and giving additionally a measure of uncertainty in the interpolated values.</p>
-<div class="cell" data-execution_count="20">
+<div class="cell" data-execution_count="19">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.gaussian_process <span class="im">import</span> GaussianProcessRegressor</span>
@@ -436,7 +436,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> gp_rf.fit(np.array([max_depth]).T, balance_rf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell preview-image" data-execution_count="21">
+<div class="cell preview-image" data-execution_count="20">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-gp-fit" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -447,7 +447,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>TPE works in a similar way, except instead of directly modeling <span class="math inline">\(P\)</span>(balance|hyperparameters) as the GPR does, TPE models the distributions of “good” and “bad” points. That is, TPE splits all the sampled points into two categories based on some arbitrary threshold <span class="math inline">\(B^*\)</span>. Those points with balance <span class="math inline">\(&gt; B^*\)</span> are considered “bad” and those with balance <span class="math inline">\(\leq B^*\)</span> are considered “good”. We then form a KDE (kernel density estimate – essentially, a fancy kind of histogram) for the good and bad points. And we do this for each model class. From these distributions, we sample the next hyperparameter according to the ratio <span class="math inline">\(P\)</span>(good|hyperparameter) / <span class="math inline">\(P\)</span>(bad|hyperparameter). The resulting sampling distribution is shown below for <span class="math inline">\(B^*=0.125\)</span>. As we can see in the right-hand plot, the TPE approach seems to encode our intuition that sampling a point max_depth <span class="math inline">\(\in\)</span> [5, 15] next is a good idea. The choice of whether to sample from the logistic regression or random forest model hyperparameters is handled by yet another hypermodel, not shown.</p>
-<div class="cell" data-execution_count="22">
+<div class="cell" data-execution_count="21">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.neighbors <span class="im">import</span> KernelDensity</span>
@@ -475,7 +475,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>bad_rf_kde <span class="op">=</span> kde.fit(np.array(bad_rf).T)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell preview-image" data-execution_count="31">
+<div class="cell preview-image" data-execution_count="22">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-tpe-fit" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -489,7 +489,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tree-structured-parzen-estimator-in-action" class="level3">
 <h3 class="anchored" data-anchor-id="tree-structured-parzen-estimator-in-action">Tree-structured Parzen estimator in action</h3>
 <p>So, now that we understand what the “fancy” hyperparameter optimization methods are doing at a very high level, let’s see if we can use them to achieve even better balance. We will use the implementation of TPE from the <a href="http://hyperopt.github.io/hyperopt/">hyperopt</a> library. To make things a little more interesting, we’ll optimize not just over model choice (LogisticRegression or RandomForest), <span class="math inline">\(C\)</span> and max_depth, but also over the penalty type (L1 or L2) for logistic regression, n_estimators and min_samples_leaf for random forest (see <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html">here</a> for a description of these parameters). After running the TPE sampler for 1000 iterations, the code returns the best parameters found, shown below.</p>
-<div class="cell" data-execution_count="33">
+<div class="cell" data-execution_count="24">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define a search space</span></span>
@@ -512,23 +512,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co"># minimize the objective over the space</span></span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>trials <span class="op">=</span> Trials()</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>best <span class="op">=</span> fmin(ps_train_and_match, space, algo<span class="op">=</span>tpe.suggest, max_evals<span class="op">=</span><span class="dv">1000</span>, trials<span class="op">=</span>trials, verbose<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'Best model found:'</span>)</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> param <span class="kw">in</span> best.items():</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'</span><span class="ch">\t</span><span class="sc">{</span>param[<span class="dv">0</span>]<span class="sc">:20}{</span>param[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">'</span>)</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="co"># np.random.seed(2345); The random seed is set above, if the notebook is run</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co"># from the beginning, one gets reproducible results</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>best <span class="op">=</span> fmin(ps_train_and_match, space, algo<span class="op">=</span>tpe.suggest, max_evals<span class="op">=</span><span class="dv">1000</span>, trials<span class="op">=</span>trials, verbose<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'Best model found:'</span>)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> param <span class="kw">in</span> best.items():</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'</span><span class="ch">\t</span><span class="sc">{</span>param[<span class="dv">0</span>]<span class="sc">:20}{</span>param[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Best model found:
-    max_depth           11.0
+    max_depth           12.0
     min_samples_leaf    223.0
     model               1
     n_estimators        11.0</code></pre>
 </div>
 </div>
 <p>Let’s take a look at what the sampler did to arrive at this result. Below, I show how the sampling of the hyperparameter space evolves over time using the TPE method.</p>
-<div class="cell preview-image" data-execution_count="40">
+<div class="cell preview-image" data-execution_count="38">
 <div class="cell-output cell-output-display">
 <div id="fig-parameter-sampling" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -539,10 +541,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>We see a number of interesting features. In the top frame, we see that the sampler choose the logistic regression (LR) model less frequently over time; this is consistent with what we saw above, namely that the random forest model seems to perform better. The hypermodels of the TPE pick up on this fact and use it to preferentially choose the model that is showing the best results.</p>
-<p>We also see that the sampler explores the space rather uniformly in the beginning (first ~200 iterations; this is by design and tunable). The sampler is doing this because it needs something to train its hypermodels on. Once it has some data to work with, the sampler can start taking more educated guesses about where to explore next. We see this in the time series of the samples for max_depth, n_estimators and min_samples_leaf. For later times, the sampler almost never chooses max_depth &lt; 10. It seems to have figured out that this choice doesn’t have a good chance of working out. Similarly, the sampler stops choosing n_estimators &gt; 50 after a while.</p>
+<p>We also see that the sampler explores the space rather uniformly in the first ~50-100 iterations. The sampler is doing this because it needs something to train its hypermodels on. Once it has some data to work with, the sampler can start taking more educated guesses about where to explore next. We see this in the time series of the samples for max_depth, n_estimators and min_samples_leaf. For later times, the sampler almost never chooses max_depth outside the range [5, 20]. It seems to have figured out that such values doesn’t have a good chance of working out. Similarly, the sampler stops choosing n_estimators &gt; 25 and zeros in on the range [100, 300] for min_samples_leaf after a while.</p>
 <p>Note that the sampler never <em>completely</em> stops exploring any region of parameter space. Especially as the number of hyperparameter dimensions grows large, there will always be unexplored regions of parameter space. Therefore, this occasional random exploration of the space, even when a good objective value seems unlikely, is useful to avoid missing out.</p>
 <p>Finally, let’s see what the matching results look like! Below, I show the resulting PS estimation using the best values for the hyperparameters found by the TPE sampler. Although the results are not perfect, we have clearly greatly improved upon the initial results.</p>
-<div class="cell preview-image" data-execution_count="42">
+<div class="cell preview-image" data-execution_count="40">
 <div class="cell-output cell-output-display">
 <div id="fig-main" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -553,7 +555,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Furthermore, as shown below, the resulting matched populations look great! I would argue this match is hard to distinguish from the match above using the true propensity score.</p>
-<div class="cell preview-image" data-execution_count="43">
+<div class="cell preview-image" data-execution_count="41">
 <div class="cell-output cell-output-display">
 <div id="fig-tpe-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
