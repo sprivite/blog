@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2023-08-07">
+<meta name="dcterms.date" content="2023-08-08">
 
 <title>Hyperparameter Optimization and Propensity Score Matching</title>
 <style>
@@ -163,8 +163,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#matching-on-estimated-propensity-score" id="toc-matching-on-estimated-propensity-score" class="nav-link" data-scroll-target="#matching-on-estimated-propensity-score">Matching on estimated propensity score</a></li>
   <li><a href="#hyperparameter-optimization-1" id="toc-hyperparameter-optimization-1" class="nav-link" data-scroll-target="#hyperparameter-optimization-1">Hyperparameter optimization</a>
   <ul class="collapse">
-  <li><a href="#random-search" id="toc-random-search" class="nav-link" data-scroll-target="#random-search">Random search</a></li>
-  <li><a href="#tree-structured-parzen-estimator" id="toc-tree-structured-parzen-estimator" class="nav-link" data-scroll-target="#tree-structured-parzen-estimator">Tree-structured Parzen estimator</a></li>
+  <li><a href="#motivation-and-intuition" id="toc-motivation-and-intuition" class="nav-link" data-scroll-target="#motivation-and-intuition">Motivation and intuition</a></li>
+  <li><a href="#tree-structured-parzen-estimator-in-action" id="toc-tree-structured-parzen-estimator-in-action" class="nav-link" data-scroll-target="#tree-structured-parzen-estimator-in-action">Tree-structured Parzen estimator in action</a></li>
   </ul></li>
   <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
   <li><a href="#further-reading" id="toc-further-reading" class="nav-link" data-scroll-target="#further-reading">Further Reading</a></li>
@@ -192,7 +192,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">August 7, 2023</p>
+      <p class="date">August 8, 2023</p>
     </div>
   </div>
   
@@ -202,21 +202,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<p>Despite the intimidating names given to methods like <em>tree-structured Parzen estimation</em> and <em>Gaussian process regression</em>, hyperparameter optimization algorithms are extremely intuitive.</p>
+<p>Despite the intimidating names given to methods like <em>tree-structured Parzen estimation</em>, hyperparameter optimization algorithms are extremely intuitive and easy to understand.</p>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
 <section id="hyperparameter-optimization" class="level3">
 <h3 class="anchored" data-anchor-id="hyperparameter-optimization">Hyperparameter optimization</h3>
-<p>This post came about as a rebellion against obfuscation. I was trying to optimize the hyperparameters of a classification model and came across an interesting-looking paper [1]. Unfortunately, the paper is dense with mathematics and gave me no intuitive insight into what’s happening. As I dug deeper, I found that the ideas they were presenting are <em>absurdly</em> simple (thanks partly to the post in [2]) and I wanted to capture this simplicity for future reference.</p>
+<p>This post came about as a rebellion against obfuscation. I was trying to optimize the hyperparameters of a classification model and came across an interesting-looking paper [1]. Unfortunately, the paper is dense with mathematics and gave me no intuitive insight into what’s happening. As I dug deeper, I found that the ideas they were presenting are <em>absurdly</em> simple (thanks partly to the post in [2]) and I wanted to capture my own take on this simplicity for future reference.</p>
 <p>I will do this in the actual setting in which my use case arose: propensity score (PS) matching. There are some prerequisites for this discussion, which I unfortunately have to assume. If you aren’t familiar, the classic reference on PS matching is [3], although I find the more recent review in [4] to be more accessible. In any case, suffice it to say that in PS matching, one trains a binary classification model and needs somehow to choose the “best” possible model over a large space of modeling choices.</p>
-<p>I refer to these modeling choices as <em>hyperparameters</em>. For me, a hyperparameter is <em>any</em> decision you make along the way to making a prediction with a model that cannot be optimized by gradient descent. I like this definition because it includes preprocessing operations that often aren’t thought of as hyperparameters. For instance, do you subtract the mean from your variables before optimizing the model parameters? This choice is a hyperparameter: subtract_mean <span class="math inline">\(\in \{True, False\}\)</span>. In many cases, there is conventional wisdom around certain choices and these choices have a well-chosen default, but the choice is there, it affects your analysis, it can’t be optimized by gradient descent and it’s therefore by my definition a hyperparameter.</p>
+<p>I refer to these modeling choices as <em>hyperparameters</em>. For me, a hyperparameter is <em>any</em> decision you make along the way to making a prediction with a model that cannot be optimized by gradient descent. I like this definition because it includes preprocessing operations that sometimes aren’t thought of as hyperparameters. For instance, do you subtract the mean from your variables before optimizing the model parameters? This choice is a hyperparameter: subtract_mean <span class="math inline">\(\in \{True, False\}\)</span>. In many cases, there is conventional wisdom around certain choices and these choices have a well-chosen default, but the choice is there, it affects your analysis, it can’t be optimized by gradient descent and it’s therefore by my definition a hyperparameter.</p>
 <p>More conventional hyperparameters are quantities like regularization strength (which was discussed <a href="regularization.html">in a previous post</a> ), type of regularization (e.g., L1 versus L2, discussed in the same post), maximum tree depth for a tree-based model, number of estimators in an ensemble method, number of layers in a multi-layer perceptron, and even the choice of which model to use. A bad choice for hyperparameters can lead to poor performance in your model, so it’s worthwhile to spend time thinking about how one can best optimize an objective function over these hyperparameters.</p>
+<p>In this post, we will motivate the need for hyperparameter optimization and give a very high level explanation of how two popular hyperparameter optimization approaches (tree-structured Parzen estimation and Gaussian process regression) work. The main goal is to break through the jargon and emphasize the intuition behind these methods. There will be minimal mathematics and we will not be rigorous! We will then demonstrate tree-structured Parzen estimation in action applied to PS hyperparameter optimization.</p>
 </section>
 <section id="propensity-score-matching" class="level3">
 <h3 class="anchored" data-anchor-id="propensity-score-matching">Propensity score matching</h3>
-<p>We want to answer the question: does treatment X cause outcome Y? Although the ideal approach to answering such a question is the randomized control trial, it’s often very impractical to perform such a trial; meanwhile there exists a wealth of high quality data that potentially already contain the cause-effect signal we’re interested in, for instance, electronic health record data generated through routine medical practice.</p>
-<p>When the intervention is not randomly assigned, there will often be systematic differences between treatment groups, which may obscure the causal signal if not taken into account. It turns out that by “matching” patients on their probability of treatment assignment, referred to as their <em>propensity score</em>, one can generate groups of patients with identical distributions of baseline covariates. It follows then that one can compare that outcomes in these matched groups and obtain an unbiased estimate of the treatment effect. For details, see [3] and [4].</p>
-<p>This all works <em>in theory</em>, when the propensity score is known. However, the propensity score is never known in observational settings and must be estimated from the data. The estimation of the propensity score from the data requires modeling choices and we want to somehow choose the “best” propensity score model over a large space of possible models.</p>
+<p>We want to answer the question: does treatment X cause outcome Y? The ideal approach to answering such a question is the randomized control trial; however, it’s often very impractical to perform such a trial. Meanwhile, there exists a wealth of high quality data that potentially already contain the cause-effect signal we’re interested in, for instance, electronic health record data generated through routine medical practice.</p>
+<p>When the intervention is not randomly assigned, there will often be systematic differences between treatment groups, which may obscure the causal signal if not taken into account. It turns out that by “matching” patients on their probability of treatment assignment, referred to as their <em>propensity score</em>, one can generate groups of patients with identical distributions of baseline covariates. It follows then that one can compare outcomes in these matched groups and obtain an unbiased estimate of the treatment effect. For details, see [3] and [4].</p>
+<p>This all works <em>in theory</em>, when the propensity score is known. However, the propensity score is never known in observational settings and must be estimated from the data. The estimation of the propensity score from the data requires modeling choices and we want to choose the “best” propensity score model over a large space of possible models. Here, we diverge a bit from traditional machine learning practices. Since the end goal is balance in the baseline covariates, we use this as an optimization target. Whereas traditionally one would use an “out-of-sample” measure of model performance, here out-of-sample behavior is not relevant.</p>
 <p>We define the following procedure for optimizing the hyperparameters of the propensity score model: <br></p>
 <ol type="1">
 <li>Choose a set of hyperparameters <br></li>
@@ -236,30 +237,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> make_bmi_egfr_blob(n_samples: <span class="bu">int</span>) <span class="op">-&gt;</span> pd.DataFrame:</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># eGFR has a mean of 55 and a spread of +/- 40; clip to range [5, 120]</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># This clipping is actually common as often measurements just report &gt;= 120</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    egfr <span class="op">=</span> <span class="dv">55</span> <span class="op">+</span> <span class="dv">40</span> <span class="op">*</span> np.random.power(<span class="dv">1</span>, n_samples) <span class="op">*</span> np.random.choice([<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>], size<span class="op">=</span>n_samples)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    egfr <span class="op">=</span> np.clip(egfr, <span class="dv">5</span>, <span class="dv">120</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># BMI has mean 20 and a spread +/- 10; clip to range [2, 80]</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    bmi <span class="op">=</span> <span class="dv">20</span> <span class="op">+</span> <span class="dv">10</span> <span class="op">*</span> np.random.randn(n_samples)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    bmi <span class="op">=</span> np.clip(bmi, <span class="dv">2</span>, <span class="dv">80</span>)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    features <span class="op">=</span> pd.DataFrame.from_records(</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        np.vstack((egfr, bmi)).T,</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        columns<span class="op">=</span>[<span class="st">'eGFR'</span>, <span class="st">'BMI'</span>]</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> features</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ps_true(x, y):</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># propensity score is a circle of radius == standard deviation around the mean</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    x_ <span class="op">=</span> (x <span class="op">-</span> x.mean()) <span class="op">/</span> x.std()</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    y_ <span class="op">=</span> (y <span class="op">-</span> y.mean()) <span class="op">/</span> y.std()</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> expit( <span class="op">-</span> (x_<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> y_<span class="op">**</span><span class="dv">2</span> ) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># We mode eGFR to have a mean of 55 and a spread of +/- 40</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># and clip to range [5, 120]. This clipping is actually common</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># as often measurements just report &gt;= 120.</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    egfr <span class="op">=</span> <span class="dv">55</span> <span class="op">+</span> <span class="dv">40</span> <span class="op">*</span> np.random.power(<span class="dv">1</span>, n_samples) <span class="op">*</span> np.random.choice([<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>], size<span class="op">=</span>n_samples)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    egfr <span class="op">=</span> np.clip(egfr, <span class="dv">5</span>, <span class="dv">120</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># We model BMI to have mean 20 and a spread +/- 10 and</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># clip to range [2, 80].</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    bmi <span class="op">=</span> <span class="dv">20</span> <span class="op">+</span> <span class="dv">10</span> <span class="op">*</span> np.random.randn(n_samples)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    bmi <span class="op">=</span> np.clip(bmi, <span class="dv">2</span>, <span class="dv">80</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    features <span class="op">=</span> pd.DataFrame.from_records(</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        np.vstack((egfr, bmi)).T,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>        columns<span class="op">=</span>[<span class="st">'eGFR'</span>, <span class="st">'BMI'</span>]</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> features</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ps_true(x: np.ndarray, y: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># propensity score is a circle of radius == standard deviation around the mean</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    x_ <span class="op">=</span> (x <span class="op">-</span> x.mean()) <span class="op">/</span> x.std()</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    y_ <span class="op">=</span> (y <span class="op">-</span> y.mean()) <span class="op">/</span> y.std()</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> expit( <span class="op">-</span> (x_<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> y_<span class="op">**</span><span class="dv">2</span> ) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell" data-execution_count="4">
+<div class="cell" data-execution_count="3">
 <div class="cell-output cell-output-display">
 <div id="fig-input-distributions" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -269,27 +272,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Given this form for the propensity score, we can now sample the realized treatment group assignment. In doing so, we get the distributions shown below for BMI and eGFR for the treated and untreated groups. We see that there are significant differences between the treated and untreated group other than the treatment. It would therefore not be fair to directly compare the health outcomes of the groups and then attribute differences in outcomes to the treatment.</p>
-<div class="cell" data-execution_count="5">
+<p>Given this assumed form for the true propensity score (i.e., the true probability of treatment assignment), we can now sample the realized treatment group assignment. In doing so, we get the distributions shown below for BMI and eGFR for the treated and untreated groups. We see that there are significant differences between the treated and untreated group other than the treatment. It would therefore not be fair to directly compare the health outcomes of the groups and then attribute differences in outcomes to the treatment.</p>
+<div class="cell" data-execution_count="4">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>treat_indicator <span class="op">=</span> (np.random.rand(n_samples) <span class="op">&lt;=</span> propensity_score).astype(<span class="bu">int</span>)</span>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>treat_indicator <span class="op">=</span> (np.random.rand(n_samples) <span class="op">&lt;=</span> ps_true).astype(<span class="bu">int</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>treat_label <span class="op">=</span> [<span class="st">'treated'</span> <span class="cf">if</span> t <span class="cf">else</span> <span class="st">'untreated'</span> <span class="cf">for</span> t <span class="kw">in</span> treat_indicator]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell preview-image" data-execution_count="7">
+<div class="cell preview-image" data-execution_count="6">
 <div class="cell-output cell-output-display">
 <div id="fig-intro" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-intro-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;2: Input distributions to the matching problem.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;2: Simulated input distributions to the matching problem.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
 <p>The number of patients in each group is given as below. The goal will be to choose a subset of patients from the untreated group such that distributions of BMI and eGFR in the chosen subset match the distributions in the treated group.</p>
-<div class="cell" data-execution_count="8">
-<div class="cell-output cell-output-display" data-execution_count="8">
+<div class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display" data-execution_count="7">
 <div>
 
 
@@ -322,8 +325,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="matching-on-the-true-propensity-score" class="level2">
 <h2 class="anchored" data-anchor-id="matching-on-the-true-propensity-score">Matching on the true propensity score</h2>
-<p>In practice, we never have direct knowledge of the propensity score. But since we do in our simulation, let’s first check what happens when we match using the true propensity score. Namely, for each patient in the treated group, we select a corresponding patient from the untreated group with a similar propensity score. The resulting population is denoted by the label “matched” in the figure below. This solution represents the best we can hope to achieve with propensity score matching.</p>
-<div class="cell preview-image" data-execution_count="9">
+<p>In practice, we never have direct knowledge of the propensity score. But since we do in our simulation, let’s first check what happens when we match using the true propensity score. Namely, for each patient in the treated group, we select a corresponding patient from the untreated group with a similar propensity score. The resulting population is denoted by the label “matched” in the figure below. This solution represents the ideal case, the best we can hope to achieve with propensity score matching.</p>
+<div class="cell preview-image" data-execution_count="8">
 <div class="cell-output cell-output-display">
 <div id="fig-true-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -338,7 +341,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="matching-on-estimated-propensity-score" class="level2">
 <h2 class="anchored" data-anchor-id="matching-on-estimated-propensity-score">Matching on estimated propensity score</h2>
 <p>Now let’s see how well we can perform matching by estimating the propensity score. To start, let’s try using a logistic regression to estimate the propensity score. As the logistic regression has linear decision boundaries, it should be clear that such a model would not be expected to perform well on this particular data, and indeed that is what we see.</p>
-<div class="cell preview-image" data-execution_count="11">
+<div class="cell preview-image" data-execution_count="10">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LogisticRegression</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.preprocessing <span class="im">import</span> StandardScaler</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>scaler <span class="op">=</span> StandardScaler()</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>normalized_features <span class="op">=</span> scaler.fit_transform(model_features[[<span class="st">'BMI'</span>, <span class="st">'eGFR'</span>]])</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>clf <span class="op">=</span> LogisticRegression()</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>clf.fit(normalized_features, treat_indicator)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>ps_est <span class="op">=</span> clf.predict_proba(normalized_features)[:, <span class="dv">1</span>]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>ps_true_ps_est_plot(ps_true, ps_est)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output cell-output-display">
 <div id="fig-log-reg-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -349,7 +363,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>As seen in the left hand plot above, the model estimates the true PS very poorly. As a result, when we match using the estimated PS, we get very poor balance, as seen below. Although the distribution on BMI looks somewhat balanced, eGFR in the matched population is left completely unbalanced. This result is simply a consequence of our modeling choice, not a breakdown of the PS approach, since we know from above that matching works when we know the true PS.</p>
-<div class="cell preview-image" data-execution_count="12">
+<div class="cell preview-image" data-execution_count="11">
 <div class="cell-output cell-output-display">
 <div id="fig-log-reg-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -359,8 +373,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Since it’s clear that the propensity score has some non-linearity to it, it make sense to next try using some sort of model that can capture this non-linearity. Let’s try therefore a random forest model for the propensity score. To illustrate the point that bad hyperparameters can impact performance, I will purposely pick very poor hyperparameters for the random forest: max_depth=2, n_estimators=2 (for this toy problem, the default hyperparameters perform quite well, but in realistic problems this may not be the case). The resulting estimation for PS is shown below. Although the estimation is still quite poor, the random forest does seem to better model the PS than the logistic regression.</p>
-<div class="cell preview-image" data-execution_count="13">
+<p>Since it’s clear that the propensity score has some non-linearity to it, it make sense to next try using some sort of model that can capture this non-linearity. Let’s try therefore a random forest model for the propensity score. To illustrate the point that bad hyperparameters can impact performance, I will purposely pick very poor hyperparameters for the random forest: max_depth=2, n_estimators=2 (for this toy problem, the default hyperparameters perform quite well, but in realistic problems this may not be the case). The resulting estimation for PS is shown below. Although the estimation is still quite poor, the random forest does seem to better model the PS than the logistic regression for these particular choices of hyperparameters.</p>
+<div class="cell preview-image" data-execution_count="12">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.ensemble <span class="im">import</span> RandomForestClassifier</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">124</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>clf <span class="op">=</span> RandomForestClassifier(max_depth<span class="op">=</span><span class="dv">2</span>, n_estimators<span class="op">=</span><span class="dv">2</span>, random_state<span class="op">=</span><span class="dv">123</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>clf.fit(normalized_features, treat_indicator)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>ps_est <span class="op">=</span> clf.predict_proba(normalized_features)[:, <span class="dv">1</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>ps_true_ps_est_plot(ps_true, ps_est)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output cell-output-display">
 <div id="fig-rf-ps-match" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -371,7 +394,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The poor performance of this choice of hyperparameters is also reflected in the resulting matched distributions, shown below. Although better than the logistic regression, it’s clear that the matching is far from the ideal case of matching on the true PS. So we have some work left.</p>
-<div class="cell preview-image" data-execution_count="14">
+<div class="cell preview-image" data-execution_count="13">
 <div class="cell-output cell-output-display">
 <div id="fig-rf-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -384,101 +407,142 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="hyperparameter-optimization-1" class="level2">
 <h2 class="anchored" data-anchor-id="hyperparameter-optimization-1">Hyperparameter optimization</h2>
-<section id="random-search" class="level3">
-<h3 class="anchored" data-anchor-id="random-search">Random search</h3>
+<section id="motivation-and-intuition" class="level3">
+<h3 class="anchored" data-anchor-id="motivation-and-intuition">Motivation and intuition</h3>
 <p>We’ve seen that the choice of hyperparameters makes a difference in the achieved balance. So let’s try a few more choices of hyperparameters and see if we can find some improvements in the balance. For the logistic regression, we randomly sample a few values for the regularization strength <span class="math inline">\(C\)</span>; for the random forest model, we randomly sample a few values for the max_depth, keeping the n_estimators fixed to 2, as before. The resulting balance (roughly, the total area between the 1D marginal distributions) as a function of these hyperparameters is shown below.</p>
-<div class="cell preview-image" data-execution_count="190">
+<div class="cell preview-image" data-execution_count="18">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-random" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-hyperopt-random-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;8: Achieved balance of various models for PS.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;8: Balance achieved by PS matching using various models for PS.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
-<p>After trying a few values of hyperparameters, we’ve realized that training models takes a long time and we can only try a limited number of hyperparameters. If given only one more chance, which model would you pick? So far it looks like the random forest model is the better bet and furthermore, it might be useful to try a max depth between 5 and 15, as this seems to be the region of hyperparameter space where the balance is the best.</p>
+<p>After trying a few values of hyperparameters, we’ve realized that training models takes a long time and we can only try a limited number of hyperparameters. Now that we have some information about how the achieved balance depends on our hyperparameters, it would make sense to use this information to choose the next point! If given only one more chance, which model would you pick? So far it looks like the random forest model is the better bet and furthermore, it might be useful to try a max depth between 5 and 15, as this seems to be the region of hyperparameter space where the balance is the best.</p>
 <p>This simple calculation, which you just did in your brain instinctively, is really all there is to hyperparameter optimization by tree-structured Parzen estimation (TPE) or Gaussian process regression (GPR), at least conceptually. For each model (logistic regression or random forest), we construct a “hypermodel” which predicts the expected balance on unseen values of the hyperparameters. We then use these hypermodels to guess a good set of hyperparameters to test next. The various methods refer simply to different ways of predicting what values of balance lie in between the sampled points and methods for choosing the next point to sample.</p>
-<p>As an illustration, we show the result of fitting a Gaussian process to the sampled data points. We perform one GPR per model class (logistic regression or random forest). The plot below shows the mean +/- 1 standard deviation range for the predicted values on the intermediate points. The Gaussian process is simply a method of interpolation on the known points with an additional measure of uncertainty in the interpolated values.</p>
-<div class="cell preview-image" data-execution_count="192">
+<p>As an illustration, we show the result of fitting a Gaussian process to the sampled data points. We perform one GPR per model class (logistic regression or random forest). The plot below shows the mean +/- 1 standard deviation range for the predicted values on the intermediate points. We see that the Gaussian process is simply interpolating on the known points and giving additionally a measure of uncertainty in the interpolated values.</p>
+<div class="cell" data-execution_count="20">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.gaussian_process <span class="im">import</span> GaussianProcessRegressor</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.gaussian_process.kernels <span class="im">import</span> RBF</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>gp_lr <span class="op">=</span> GaussianProcessRegressor(normalize_y<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> gp_lr.fit(np.log([C]).T, balance_lr)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>gp_rf <span class="op">=</span> GaussianProcessRegressor(normalize_y<span class="op">=</span><span class="va">True</span>, kernel<span class="op">=</span>RBF(length_scale_bounds<span class="op">=</span>(<span class="dv">1</span>, <span class="dv">100</span>)))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> gp_rf.fit(np.array([max_depth]).T, balance_rf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell preview-image" data-execution_count="21">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-gp-fit" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-hyperopt-gp-fit-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;9: Gaussian process fit to the sampled hyperparameters for each model type.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;9: Gaussian process fit to achieved balance as a function of the hyperparameters for each model type.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
-<p>TPE works in a similar way, except instead of directly modeling <span class="math inline">\(P\)</span>(balance|hyperparameters) as the GPR does, TPE models the distributions of “good” and “bad” points. That is, TPE splits all the sampled points into two categories based on some arbitrary threshold <span class="math inline">\(B^*\)</span>. Those points with balance <span class="math inline">\(&gt; B^*\)</span> are considered “bad” and those with balance <span class="math inline">\(\leq B^*\)</span> are considered “good”. We then form a KDE for the good and bad points. And we do this for each model class. From these distributions, we sample the next hyperparameter according to the ratio <span class="math inline">\(P\)</span>(good|hyperparameter) / <span class="math inline">\(P\)</span>(bad|hyperparameter). The resulting sampling distribution is shown below for <span class="math inline">\(B^*=0.125\)</span>. As we can see in the right-hand plot, the TPE approach seems to encode our intuition that sampling a point max_depth <span class="math inline">\(\in\)</span> [5, 15] next is a good idea.</p>
-<div class="cell preview-image" data-execution_count="225">
+<p>TPE works in a similar way, except instead of directly modeling <span class="math inline">\(P\)</span>(balance|hyperparameters) as the GPR does, TPE models the distributions of “good” and “bad” points. That is, TPE splits all the sampled points into two categories based on some arbitrary threshold <span class="math inline">\(B^*\)</span>. Those points with balance <span class="math inline">\(&gt; B^*\)</span> are considered “bad” and those with balance <span class="math inline">\(\leq B^*\)</span> are considered “good”. We then form a KDE (kernel density estimate – essentially, a fancy kind of histogram) for the good and bad points. And we do this for each model class. From these distributions, we sample the next hyperparameter according to the ratio <span class="math inline">\(P\)</span>(good|hyperparameter) / <span class="math inline">\(P\)</span>(bad|hyperparameter). The resulting sampling distribution is shown below for <span class="math inline">\(B^*=0.125\)</span>. As we can see in the right-hand plot, the TPE approach seems to encode our intuition that sampling a point max_depth <span class="math inline">\(\in\)</span> [5, 15] next is a good idea. The choice of whether to sample from the logistic regression or random forest model hyperparameters is handled by yet another hypermodel, not shown.</p>
+<div class="cell" data-execution_count="22">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.neighbors <span class="im">import</span> KernelDensity</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>Bstar <span class="op">=</span> <span class="fl">0.125</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>good_lr <span class="op">=</span> [[c <span class="cf">for</span> c,b <span class="kw">in</span> <span class="bu">zip</span>(C, balance_lr) <span class="cf">if</span> b <span class="op">&lt;</span> Bstar]]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>bad_lr <span class="op">=</span> [[c <span class="cf">for</span> c,b <span class="kw">in</span> <span class="bu">zip</span>(C, balance_lr) <span class="cf">if</span> b <span class="op">&gt;=</span> Bstar]]</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>good_rf <span class="op">=</span> [[d <span class="cf">for</span> d,b <span class="kw">in</span> <span class="bu">zip</span>(max_depth, balance_rf) <span class="cf">if</span> b <span class="op">&lt;</span> Bstar]] </span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>bad_rf <span class="op">=</span> [[d <span class="cf">for</span> d,b <span class="kw">in</span> <span class="bu">zip</span>(max_depth, balance_rf) <span class="cf">if</span> b <span class="op">&gt;=</span> Bstar]]</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>bandwidth <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> <span class="st">'gaussian'</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>kde <span class="op">=</span> KernelDensity(bandwidth<span class="op">=</span>bandwidth, kernel<span class="op">=</span>kernel)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>good_lr_kde <span class="op">=</span> kde.fit(np.log(good_lr).T)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>kde <span class="op">=</span> KernelDensity(bandwidth<span class="op">=</span>bandwidth, kernel<span class="op">=</span>kernel)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>bad_lr_kde <span class="op">=</span> kde.fit(np.log(bad_lr).T)</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>bandwidth <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>kde <span class="op">=</span> KernelDensity(bandwidth<span class="op">=</span>bandwidth, kernel<span class="op">=</span>kernel)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>good_rf_kde <span class="op">=</span> kde.fit(np.array(good_rf).T)</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>kde <span class="op">=</span> KernelDensity(bandwidth<span class="op">=</span>bandwidth, kernel<span class="op">=</span>kernel)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>bad_rf_kde <span class="op">=</span> kde.fit(np.array(bad_rf).T)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell preview-image" data-execution_count="31">
 <div class="cell-output cell-output-display">
 <div id="fig-hyperopt-tpe-fit" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-hyperopt-tpe-fit-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;10: Sampling distribution obtained by fitting Gaussian KDEs to the observed values of the balance for each type.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;10: Sampling distribution obtained by fitting Gaussian KDEs to the observed values of the balance for each model type.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
 </section>
-<section id="tree-structured-parzen-estimator" class="level3">
-<h3 class="anchored" data-anchor-id="tree-structured-parzen-estimator">Tree-structured Parzen estimator</h3>
+<section id="tree-structured-parzen-estimator-in-action" class="level3">
+<h3 class="anchored" data-anchor-id="tree-structured-parzen-estimator-in-action">Tree-structured Parzen estimator in action</h3>
 <p>So, now that we understand what the “fancy” hyperparameter optimization methods are doing at a very high level, let’s see if we can use them to achieve even better balance. We will use the implementation of TPE from the <a href="http://hyperopt.github.io/hyperopt/">hyperopt</a> library. To make things a little more interesting, we’ll optimize not just over model choice (LogisticRegression or RandomForest), <span class="math inline">\(C\)</span> and max_depth, but also over the penalty type (L1 or L2) for logistic regression, n_estimators and min_samples_leaf for random forest (see <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html">here</a> for a description of these parameters). After running the TPE sampler for 1000 iterations, the code returns the best parameters found, shown below.</p>
-<div class="cell" data-execution_count="27">
+<div class="cell" data-execution_count="33">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define a search space</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> hyperopt <span class="im">import</span> hp</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> hyperopt <span class="im">import</span> fmin, tpe, space_eval, Trials</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>space <span class="op">=</span> hp.choice(<span class="st">'model'</span>, [</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    (LogisticRegression, {</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'C'</span>:hp.loguniform(<span class="st">'C'</span>, <span class="op">-</span><span class="fl">4.6</span>, <span class="fl">4.6</span>), <span class="co"># BASE E</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'penalty'</span>:hp.choice(<span class="st">'penalty'</span>, [<span class="st">'l1'</span>, <span class="st">'l2'</span>]),</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">'solver'</span>:<span class="st">'saga'</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    }),</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    (RandomForestClassifier, {</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">'n_estimators'</span>:hp.uniformint(<span class="st">'n_estimators'</span>, <span class="dv">2</span>, <span class="dv">100</span>),</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">'min_samples_leaf'</span>:hp.uniformint(<span class="st">'min_samples_leaf'</span>, <span class="dv">1</span>, <span class="dv">500</span>),</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">'max_depth'</span>:hp.uniformint(<span class="st">'max_depth'</span>, <span class="dv">2</span>, <span class="dv">30</span>),</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">'random_state'</span>:<span class="dv">123</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    })</span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co"># minimize the objective over the space</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>trials <span class="op">=</span> Trials()</span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>best <span class="op">=</span> fmin(ps_match, space, algo<span class="op">=</span>tpe.suggest, max_evals<span class="op">=</span><span class="dv">1000</span>, trials<span class="op">=</span>trials, verbose<span class="op">=</span><span class="va">False</span>)</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'Best model found:'</span>)</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> param <span class="kw">in</span> best.items():</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'</span><span class="ch">\t</span><span class="sc">{</span>param[<span class="dv">0</span>]<span class="sc">:20}{</span>param[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">'</span>)</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># define a search space</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> hyperopt <span class="im">import</span> hp</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> hyperopt <span class="im">import</span> fmin, tpe, space_eval, Trials</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>space <span class="op">=</span> hp.choice(<span class="st">'model'</span>, [</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    (LogisticRegression, {</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'C'</span>:hp.loguniform(<span class="st">'C'</span>, <span class="op">-</span><span class="fl">4.6</span>, <span class="fl">4.6</span>), <span class="co"># BASE E</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'penalty'</span>:hp.choice(<span class="st">'penalty'</span>, [<span class="st">'l1'</span>, <span class="st">'l2'</span>]),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">'solver'</span>:<span class="st">'saga'</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    }),</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    (RandomForestClassifier, {</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">'n_estimators'</span>:hp.uniformint(<span class="st">'n_estimators'</span>, <span class="dv">2</span>, <span class="dv">100</span>),</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">'min_samples_leaf'</span>:hp.uniformint(<span class="st">'min_samples_leaf'</span>, <span class="dv">1</span>, <span class="dv">500</span>),</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">'max_depth'</span>:hp.uniformint(<span class="st">'max_depth'</span>, <span class="dv">2</span>, <span class="dv">30</span>),</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">'random_state'</span>:<span class="dv">123</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co"># minimize the objective over the space</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>trials <span class="op">=</span> Trials()</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>best <span class="op">=</span> fmin(ps_train_and_match, space, algo<span class="op">=</span>tpe.suggest, max_evals<span class="op">=</span><span class="dv">1000</span>, trials<span class="op">=</span>trials, verbose<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'Best model found:'</span>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> param <span class="kw">in</span> best.items():</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'</span><span class="ch">\t</span><span class="sc">{</span>param[<span class="dv">0</span>]<span class="sc">:20}{</span>param[<span class="dv">1</span>]<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Best model found:
-    max_depth           8.0
-    min_samples_leaf    211.0
+    max_depth           11.0
+    min_samples_leaf    223.0
     model               1
-    n_estimators        10.0</code></pre>
+    n_estimators        11.0</code></pre>
 </div>
 </div>
 <p>Let’s take a look at what the sampler did to arrive at this result. Below, I show how the sampling of the hyperparameter space evolves over time using the TPE method.</p>
-<div class="cell preview-image" data-execution_count="34">
+<div class="cell preview-image" data-execution_count="40">
 <div class="cell-output cell-output-display">
 <div id="fig-parameter-sampling" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-parameter-sampling-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;11: An illustration of how the sampling of hyperparameters varies over time in TPE for the random forest hyperparameters.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;11: An illustration of how the sampling of hyperparameters varies over time in the TPE approach.</figcaption><p></p>
 </figure>
 </div>
 </div>
 </div>
 <p>We see a number of interesting features. In the top frame, we see that the sampler choose the logistic regression (LR) model less frequently over time; this is consistent with what we saw above, namely that the random forest model seems to perform better. The hypermodels of the TPE pick up on this fact and use it to preferentially choose the model that is showing the best results.</p>
-<p>We also see that the sampler explores the space rather uniformly in the beginning (first ~200 iterations; this is tunable). The sampler is doing this because it needs something to train its hypermodels on. Once it has some data to work with, the sampler can start taking more educated guesses about where to explore next. We see this in the time series of the samples for max_depth, n_estimators and min_samples_leaf. For later times, the sampler almost never chooses max_depth &lt; 10. It seems to have figured out that this choice doesn’t have a good chance of working out. Similarly, the sampler stops choosing n_estimators &gt; 50 after a while.</p>
+<p>We also see that the sampler explores the space rather uniformly in the beginning (first ~200 iterations; this is by design and tunable). The sampler is doing this because it needs something to train its hypermodels on. Once it has some data to work with, the sampler can start taking more educated guesses about where to explore next. We see this in the time series of the samples for max_depth, n_estimators and min_samples_leaf. For later times, the sampler almost never chooses max_depth &lt; 10. It seems to have figured out that this choice doesn’t have a good chance of working out. Similarly, the sampler stops choosing n_estimators &gt; 50 after a while.</p>
 <p>Note that the sampler never <em>completely</em> stops exploring any region of parameter space. Especially as the number of hyperparameter dimensions grows large, there will always be unexplored regions of parameter space. Therefore, this occasional random exploration of the space, even when a good objective value seems unlikely, is useful to avoid missing out.</p>
 <p>Finally, let’s see what the matching results look like! Below, I show the resulting PS estimation using the best values for the hyperparameters found by the TPE sampler. Although the results are not perfect, we have clearly greatly improved upon the initial results.</p>
-<div class="cell preview-image" data-execution_count="35">
+<div class="cell preview-image" data-execution_count="42">
 <div class="cell-output cell-output-display">
 <div id="fig-main" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
@@ -489,12 +553,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Furthermore, as shown below, the resulting matched populations look great! I would argue this match is hard to distinguish from the match above using the true propensity score.</p>
-<div class="cell preview-image" data-execution_count="36">
+<div class="cell preview-image" data-execution_count="43">
 <div class="cell-output cell-output-display">
 <div id="fig-tpe-ps-match-balance" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="hyperparameter_optimization_files/figure-html/fig-tpe-ps-match-balance-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;13: Achieved balance of PS matching using best model achieved from TPE.</figcaption><p></p>
+<p></p><figcaption class="figure-caption">Figure&nbsp;13: Achieved balance of PS matching using best model achieved from TPE hyperparameter optimization.</figcaption><p></p>
 </figure>
 </div>
 </div>
@@ -503,7 +567,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="conclusion" class="level2">
 <h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
-<p>Hyperparameter optimzation is an important step in any machine learning workflow. Random sampling of hyperparameters is a very inefficient way to optimize hyperparameters, as our eyes can very quickly tell us. Tree-structured Parzen estimation and Gaussian process regression are a nice alternatives to random hyperparameter search, with easy-to-use Python implementations readily available. Although the methods sound intimidating, it’s really nothing more than a formalization of what we would naturally do anyway if we were to manually choose hyperparameters to test.</p>
+<p>Hyperparameter optimzation is an important step in any machine learning workflow. Random sampling of hyperparameters is a very inefficient way to optimize hyperparameters, as our eyes can very quickly tell us. Tree-structured Parzen estimation and Gaussian process regression are a nice alternatives to random hyperparameter search, with easy-to-use Python implementations readily available. Although the methods sound intimidating, they are not much more than a formalization of what we would naturally do anyway if we were to manually choose hyperparameters to test.</p>
 </section>
 <section id="further-reading" class="level2">
 <h2 class="anchored" data-anchor-id="further-reading">Further Reading</h2>
