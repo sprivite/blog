@@ -2,11 +2,11 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.313">
+<meta name="generator" content="quarto-1.4.551">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Post description">
+<meta name="dcterms.date" content="2024-03-21">
 
 <title>Kaplan Meier and the Log-Rank Test</title>
 <style>
@@ -23,7 +23,7 @@ ul.task-list li input[type="checkbox"] {
 }
 /* CSS for syntax highlighting */
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -58,7 +58,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -82,7 +82,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   "collapse-after": 3,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -91,16 +97,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
-    "search-submit-button-title": "Submit"
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
   }
 }</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -108,7 +143,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
             <div id="quarto-search" class="" title="Search"></div>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
@@ -117,30 +152,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../index.html" rel="" target="">
- <span class="menu-text">About</span></a>
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../posts.html" rel="" target="">
- <span class="menu-text">Posts</span></a>
+    <a class="nav-link" href="../posts.html"> 
+<span class="menu-text">Posts</span></a>
   </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
-    <a class="nav-link" href="https://linkedin.com/in/stephen.privitera" rel="" target=""><i class="bi bi-linkedin" role="img">
+    <a class="nav-link" href="https://linkedin.com/in/stephen.privitera"> <i class="bi bi-linkedin" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/sprivite" rel="" target=""><i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/sprivite"> <i class="bi bi-github" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
 </ul>
-            <div class="quarto-navbar-tools">
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
   <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
 </div>
-          </div> <!-- /navcollapse -->
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -157,6 +192,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#problem-setup" id="toc-problem-setup" class="nav-link" data-scroll-target="#problem-setup">Problem Setup</a></li>
   <li><a href="#kaplan-meier-curve" id="toc-kaplan-meier-curve" class="nav-link" data-scroll-target="#kaplan-meier-curve">Kaplan-Meier Curve</a></li>
   <li><a href="#log-rank-test" id="toc-log-rank-test" class="nav-link" data-scroll-target="#log-rank-test">Log-Rank Test</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  <li><a href="#further-reading" id="toc-further-reading" class="nav-link" data-scroll-target="#further-reading">Further reading</a></li>
   </ul>
 </nav>
     </div>
@@ -166,35 +203,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <div class="quarto-title-block"><div><h1 class="title">Kaplan Meier and the Log-Rank Test</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li></ul></div></div>
-</div>
-
-<div>
-  <div class="description">
-    Post description
+  <div class="quarto-categories">
+    <div class="quarto-category">statistics</div>
+    <div class="quarto-category">survival analysis</div>
   </div>
-</div>
+  </div>
+
 
 
 <div class="quarto-title-meta">
 
     
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">March 21, 2024</p>
+    </div>
+  </div>
   
     
   </div>
   
 
+
 </header>
 
+
+<p>The log-rank statistic models random variation in the survival statistics of a population due to finite sampling effects.</p>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>The Kaplan-Meier method is one way to estimate the survival curve <span class="math inline">\(S(t)\)</span> of a population based on observed event and censoring times. The method is extremely simple – below we will implement the method using numpy in two lines of code. The basic idea is that the survival curve itself is at each time point <span class="math inline">\(t\)</span> a free parameter to be estimated subject to the condition that <span class="math display">\[S(t+\Delta t) = S(t)P(\text{survive to }t + \Delta t|\text{survive to }t)\]</span></p>
-<p>One question that inevitably comes up when computing Kaplan-Meier curves is whether two curves are significantly different. The log-rank test is one commonly-applied techniques to address this question. The log-rank test is also quite easy to understand and here will we see a visually demonstration of the statistical test.</p>
+<p>The Kaplan-Meier (KM) method is one way to estimate the survival curve <span class="math inline">\(S(t)\)</span> of a population based on observed event and censoring times. The method is extremely simple – below we will implement the method using numpy in two lines of code. The basic idea is that the survival curve is at each time point <span class="math inline">\(t\)</span> a free parameter to be estimated subject to the condition that <span class="math display">\[S(t+\Delta t) = S(t)P(\text{survive to }t + \Delta t|\text{survive to }t)\]</span></p>
+<p>One question that inevitably comes up when computing KM curves is whether two curves are significantly different. For instance, we may have two groups of patients, each on a different medication, and we want to know if the groups have different chances of survival. The log-rank test is one commonly-applied technique to address this question. In this post, we will give a visual demonstration of this key statistical test.</p>
 </section>
 <section id="problem-setup" class="level2">
 <h2 class="anchored" data-anchor-id="problem-setup">Problem Setup</h2>
-<p>In order to demonstrate the estimation of survival curves by the KM approach, let’s start by simulating patient data with a known survival curve. Since KM is a non-parametric method, let’s at least use a survival curve that’s complex enough to not be simply modelled by an exponential. An interesting example is a survival curve in which the initial hazard rate is quite large, but over time the hazard decreases. This example could be very interesting for a medication in which most patients experience severe side effects early on, but over time the risk for severe events decreases.</p>
-<div class="cell" data-tags="[]" data-execution_count="22">
-<details>
+<p>Let’s start by simulating patient data with a known survival curve. Since KM is a non-parametric method, let’s at least use a survival curve that’s complex enough to not be simply modelled by an exponential. An interesting example is a survival curve in which the initial hazard rate is quite large, but over time the hazard decreases, as illustrated below. This example could be applicable to a medication in which most patients experience severe side effects early on, but over time the risk for severe events decreases.</p>
+<div id="01650d6c-2a22-43e7-b176-953b821862a5" class="cell" data-tags="[]" data-execution_count="3">
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sigmoid(x):</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">1.</span><span class="op">/</span>(<span class="dv">1</span> <span class="op">+</span> np.exp(<span class="op">-</span>x))</span>
@@ -231,19 +276,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>survival_function <span class="op">=</span> survival_function <span class="op">/</span> survival_function[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell" data-tags="[]" data-execution_count="23">
+<div id="cell-fig-survival" class="cell" data-tags="[]" data-execution_count="4">
 <div class="cell-output cell-output-display">
-<div id="fig-survival" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<p><img src="kaplan_meier_log_rank_files/figure-html/fig-survival-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;1: Test</figcaption><p></p>
+<div id="fig-survival" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-survival-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-survival-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-survival-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
+</figcaption>
 </figure>
 </div>
 </div>
 </div>
 <p>Let’s now simulate 100 patients subject to the above survival curve and see that we can use the Kaplan-Meier approach to estimate the true curve.</p>
-<div class="cell" data-tags="[]" data-execution_count="83">
-<details>
+<div id="12983c07-12df-4f1b-834a-e71bf924c9ee" class="cell" data-tags="[]" data-execution_count="5">
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_survival_times(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    n_patients: <span class="bu">int</span>,</span>
@@ -290,7 +339,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>cohort_1_events <span class="op">=</span> generate_survival_data(n_patients, survival_function, censor_rate)</span>
 <span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>cohort_1_events</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="83">
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
 <div>
 
 
@@ -307,31 +357,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td data-quarto-table-cell-role="th">0</td>
 <td>0</td>
-<td>62</td>
+<td>70</td>
 <td>0</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">1</td>
 <td>1</td>
-<td>18</td>
-<td>0</td>
+<td>6</td>
+<td>1</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">2</td>
 <td>2</td>
-<td>34</td>
-<td>0</td>
+<td>67</td>
+<td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">3</td>
 <td>3</td>
-<td>10</td>
+<td>53</td>
 <td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">4</td>
 <td>4</td>
-<td>34</td>
+<td>24</td>
 <td>0</td>
 </tr>
 <tr class="even">
@@ -343,32 +393,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td data-quarto-table-cell-role="th">95</td>
 <td>95</td>
-<td>93</td>
-<td>0</td>
+<td>13</td>
+<td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">96</td>
 <td>96</td>
-<td>55</td>
-<td>1</td>
+<td>31</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">97</td>
 <td>97</td>
-<td>112</td>
+<td>40</td>
 <td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">98</td>
 <td>98</td>
-<td>60</td>
-<td>1</td>
+<td>37</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">99</td>
 <td>99</td>
-<td>21</td>
-<td>0</td>
+<td>429</td>
+<td>1</td>
 </tr>
 </tbody>
 </table>
@@ -377,12 +427,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+</div>
 </section>
 <section id="kaplan-meier-curve" class="level2">
 <h2 class="anchored" data-anchor-id="kaplan-meier-curve">Kaplan-Meier Curve</h2>
 <p>In order to calculate the KM curve, we first need to aggregate the patient data by event time as follows:</p>
-<div class="cell" data-tags="[]" data-execution_count="26">
-<details>
+<div id="3214d20e-3978-4e0c-9fe5-8b3ffb963d8a" class="cell" data-tags="[]" data-execution_count="6">
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> aggregate_events(patient_level_events: pd.DataFrame) <span class="op">-&gt;</span> pd.DataFrame:</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -400,7 +451,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg <span class="op">=</span> aggregate_events(cohort_1_events)</span>
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="26">
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
 <div>
 
 
@@ -429,26 +481,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td data-quarto-table-cell-role="th">1</td>
 <td>2</td>
-<td>2</td>
+<td>0</td>
 <td>100</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">2</td>
-<td>2</td>
+<td>1</td>
 <td>0</td>
-<td>96</td>
+<td>98</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">3</td>
-<td>3</td>
 <td>1</td>
-<td>94</td>
+<td>0</td>
+<td>97</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">4</td>
-<td>1</td>
 <td>2</td>
-<td>90</td>
+<td>0</td>
+<td>96</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">...</td>
@@ -457,31 +509,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>...</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">352</td>
+<td data-quarto-table-cell-role="th">160</td>
 <td>1</td>
 <td>0</td>
 <td>5</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">382</td>
-<td>1</td>
+<td data-quarto-table-cell-role="th">209</td>
 <td>0</td>
+<td>1</td>
 <td>4</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">384</td>
-<td>0</td>
+<td data-quarto-table-cell-role="th">214</td>
 <td>1</td>
+<td>0</td>
 <td>3</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">421</td>
+<td data-quarto-table-cell-role="th">256</td>
 <td>0</td>
 <td>1</td>
 <td>2</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">462</td>
+<td data-quarto-table-cell-role="th">429</td>
 <td>0</td>
 <td>1</td>
 <td>1</td>
@@ -489,13 +541,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 
-<p>69 rows × 3 columns</p>
+<p>63 rows × 3 columns</p>
 </div>
 </div>
 </div>
-<p>Now the calculation of the KM curve is exceedingly simple.</p>
-<div class="cell" data-tags="[]" data-execution_count="87">
-<details>
+</div>
+<p>Now the calculation of the KM curve is exceedingly simple. In numpy, the calculation requires only two lines of code. The results of the calculation is shown below.</p>
+<div id="206297d3-2d53-4013-997b-933216d62e94" class="cell" data-tags="[]" data-execution_count="7">
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_kaplan_meier_survival(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    n_events: np.array, </span>
@@ -506,38 +559,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> km_estimate</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell" data-tags="[]" data-execution_count="88">
+<div id="cell-fig-survival-est" class="cell" data-tags="[]" data-execution_count="8">
 <div class="cell-output cell-output-display">
-<div id="fig-survival-est" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<p><img src="kaplan_meier_log_rank_files/figure-html/fig-survival-est-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;2: Test</figcaption><p></p>
+<div id="fig-survival-est" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-survival-est-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-survival-est-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-survival-est-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Test
+</figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>As we can see, the estimated curve does not exactly match the theoretical curve. This difference is to be expected due to the finite number of samples we have.</p>
 </section>
 <section id="log-rank-test" class="level2">
 <h2 class="anchored" data-anchor-id="log-rank-test">Log-Rank Test</h2>
-<div class="cell" data-tags="[]" data-execution_count="85">
+<p>To understand the log-rank test, let’s now take this population of 100 patients and randomly split them into two groups. By construction, we know the survival curves for the two subgroups are identical, but we will see random fluctuations in the estimated KM curve.</p>
+<div id="cell-fig-survival-split" class="cell" data-tags="[]" data-execution_count="10">
 <div class="cell-output cell-output-display">
-<div id="fig-survival-split" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<p><img src="kaplan_meier_log_rank_files/figure-html/fig-survival-split-output-1.png" class="img-fluid figure-img"></p>
-<p></p><figcaption class="figure-caption">Figure&nbsp;3: Test</figcaption><p></p>
+<div id="fig-survival-split" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-survival-split-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-survival-split-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-survival-split-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Test
+</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<div id="fig-survival-sampled" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<details>
+<div id="cell-fig-main" class="cell preview-image" data-tags="[]" data-execution_count="12">
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>lr <span class="op">=</span> []</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">100</span>):</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> random_split_cohort(cohort_1_events)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    lr.append(compute_log_rank(split_agg_1))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    lr.append(compute_log_rank(split_agg_1, split_agg_2))</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    </span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    ax <span class="op">=</span> sns.lineplot(</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        data<span class="op">=</span>split_agg_1[[<span class="st">'KM Estimate (1)'</span>]], </span>
@@ -561,58 +623,60 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>ax.set_ylim([<span class="dv">0</span>, <span class="dv">1</span>])</span>
 <span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>ax.set_xlim([<span class="dv">0</span>, <span class="dv">365</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div id="fig-survival-sampled-1" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<pre><code>(0.0, 365.0)</code></pre>
-<p></p><figcaption class="figure-caption">(a) Test</figcaption><p></p>
-</figure>
-</div>
 <div class="cell-output cell-output-display">
-<div id="fig-survival-sampled-2" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<p><img src="kaplan_meier_log_rank_files/figure-html/fig-survival-sampled-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-survival-sampled"></p>
-<p></p><figcaption class="figure-caption">(b)</figcaption><p></p>
+<div id="fig-main" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-main-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-main-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-main-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying population.
+</figcaption>
 </figure>
 </div>
 </div>
-<p></p><figcaption class="figure-caption">Figure&nbsp;4: <strong>?(caption)</strong></figcaption><p></p>
-</figure>
 </div>
-<div id="fig-logrank" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<details>
+<p>Above we show an ensemble of random Kaplan-Meier curves drawn from the same underlying population. The plot shows the individual KM curves, each representing survival data from different random splits of the cohort. For comparison, we have drawn also the true survival function, and we see that variations in the estimated KM curve arise out of finite sampling effects.</p>
+<div id="cell-fig-logrank" class="cell" data-tags="[]" data-execution_count="14">
+<details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># lr = []</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for _ in range(1000):</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     split_agg_1, split_agg_2 = random_split_cohort(cohort_1_events)</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     lr.append(compute_log_rank(split_agg_1, split_agg_2))</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 50-50 samples'</span>)</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># lr = []</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for _ in range(1000):</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     split_agg_1, split_agg_2 = random_split_cohort(cohort_1_events)</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     lr.append(compute_log_rank(split_agg_1, split_agg_2))</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 50-50 samples'</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div id="fig-logrank-1" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<pre><code>&lt;matplotlib.legend.Legend at 0x14101f190&gt;</code></pre>
-<p></p><figcaption class="figure-caption">(a) Test</figcaption><p></p>
-</figure>
-</div>
 <div class="cell-output cell-output-display">
-<div id="fig-logrank-2" class="quarto-figure quarto-figure-center anchored">
-<figure class="figure">
-<p><img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-logrank"></p>
-<p></p><figcaption class="figure-caption">(b)</figcaption><p></p>
+<div id="fig-logrank" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Test
+</figcaption>
 </figure>
 </div>
 </div>
-<p></p><figcaption class="figure-caption">Figure&nbsp;5: <strong>?(caption)</strong></figcaption><p></p>
-</figure>
 </div>
+<p>Now for each of the ensemble pairs generated in the previous plot, we compute the log-rank statistics. We see that the distribution of the log-rank statistics matches well a <span class="math inline">\(\chi^2\)</span> distribution with one degree-of-freedom.</p>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>In conclusion, we explored the sampling distribution of Kaplan-Meier curves and seen that sampling effects leads to variation in the observed KM curve. The log-rank tests measures when differences in KM curves are larger than one would expect by pure chance, when the underlying populations are the same.</p>
+</section>
+<section id="further-reading" class="level1">
+<h1>Further reading</h1>
+<p>[1] <a href="http://www.uop.edu.pk/ocontents/survival-analysis-self-learning-book.pdf">Survival Analysis Self-Learning Book</a></p>
 
 
 </section>
@@ -659,6 +723,33 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       } else {
         el.classList.add('notransition');
       }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
     }
   }
   const toggleColorMode = (alternate) => {
@@ -727,13 +818,15 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       return localAlternateSentinel;
     }
   }
-  let localAlternateSentinel = 'default';
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
   // Dark / light mode switch
   window.quartoToggleColorScheme = () => {
     // Read the current dark / light value 
     let toAlternate = !hasAlternateSentinel();
     toggleColorMode(toAlternate);
     setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
   };
   // Ensure there is a toggle, if there isn't float one in the top right
   if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
@@ -863,10 +956,27 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   if (showAllCode) {
     showAllCode.addEventListener("click", toggleCodeHandler(true));
   }
-  function tippyHover(el, contentFn) {
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -876,8 +986,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -889,7 +1008,130 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -933,6 +1175,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -958,6 +1201,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -1018,6 +1287,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 });
 </script>
 </div> <!-- /content -->
+
 
 
 
