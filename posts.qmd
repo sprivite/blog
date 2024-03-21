@@ -1,9 +1,10 @@
 ---
 title: ""
 listing:
-  contents: blog
+  contents: blog/
   categories: true
-  sort-ui: [title, date]
+  sort: "date desc"
+  sort-ui: [date, title]
   filter-ui: [title, date]
   fields: [image, categories, date, title, description, reading-time]
 ---

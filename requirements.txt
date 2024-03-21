@@ -1,3 +1,4 @@
+quarto
 jupyter
 jupyterlab
 matplotlib
