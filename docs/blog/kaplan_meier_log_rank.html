@@ -449,7 +449,8 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> agg_events</span>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg <span class="op">=</span> aggregate_events(cohort_1_events)</span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg.loc[:, <span class="st">'P(t + dt| t)'</span>] <span class="op">=</span> <span class="dv">1</span> <span class="op">-</span> cohort_1_events_agg[<span class="st">'n_events'</span>] <span class="op">/</span> cohort_1_events_agg[<span class="st">'at_risk'</span>]</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <div>
@@ -463,9 +464,11 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <th data-quarto-table-cell-role="th">n_events</th>
 <th data-quarto-table-cell-role="th">n_censored</th>
 <th data-quarto-table-cell-role="th">at_risk</th>
+<th data-quarto-table-cell-role="th">P(t + dt| t)</th>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">event_time</th>
+<th data-quarto-table-cell-role="th"></th>
 <th data-quarto-table-cell-role="th"></th>
 <th data-quarto-table-cell-role="th"></th>
 <th data-quarto-table-cell-role="th"></th>
@@ -477,33 +480,39 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <td>0</td>
 <td>0</td>
 <td>100</td>
+<td>1.000000</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">2</td>
 <td>1</td>
 <td>0</td>
 <td>100</td>
+<td>0.990000</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">3</td>
 <td>3</td>
 <td>2</td>
 <td>99</td>
+<td>0.969697</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">4</td>
 <td>1</td>
 <td>0</td>
 <td>94</td>
+<td>0.989362</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">6</td>
 <td>1</td>
 <td>0</td>
 <td>93</td>
+<td>0.989247</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">...</td>
+<td>...</td>
 <td>...</td>
 <td>...</td>
 <td>...</td>
@@ -513,40 +522,47 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <td>0</td>
 <td>1</td>
 <td>5</td>
+<td>1.000000</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">300</td>
 <td>1</td>
 <td>0</td>
 <td>4</td>
+<td>0.750000</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">310</td>
 <td>0</td>
 <td>1</td>
 <td>3</td>
+<td>1.000000</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">332</td>
 <td>1</td>
 <td>0</td>
 <td>2</td>
+<td>0.500000</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">342</td>
 <td>0</td>
 <td>1</td>
 <td>1</td>
+<td>1.000000</td>
 </tr>
 </tbody>
 </table>
 
-<p>71 rows × 3 columns</p>
+<p>71 rows × 4 columns</p>
 </div>
 </div>
 </div>
 </div>
-<p>Now the calculation of the KM curve is exceedingly simple. In numpy, the calculation requires only two lines of code. The results of the calculation is shown below.</p>
+<p>Now the calculation of the KM curve is exceedingly simple. In the last column, we added the estimated differential probability of survival in a given interval, computed as</p>
+<p><span class="math display">\[P(\text{survive to }t + \Delta t|\text{survive to }t) \approx 1 - n_{events} / n_{at\_risk}\]</span></p>
+<p>The overall survival curve is then given by the cumulative product of the values in this column. The resulting survival curve estimate is shown below.</p>
 <div id="206297d3-2d53-4013-997b-933216d62e94" class="cell" data-tags="[]" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
