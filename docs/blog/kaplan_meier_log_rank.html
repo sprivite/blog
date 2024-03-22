@@ -232,13 +232,13 @@ window.Quarto = {
 <p>The log-rank statistic models random variation in the survival statistics of a population due to finite sampling effects.</p>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>The Kaplan-Meier (KM) method is one way to estimate the survival curve <span class="math inline">\(S(t)\)</span> of a population based on observed event and censoring times. The method is extremely simple – below we will implement the method using numpy in two lines of code. The basic idea is that the survival curve is at each time point <span class="math inline">\(t\)</span> a free parameter to be estimated subject to the condition that <span class="math display">\[S(t+\Delta t) = S(t)P(\text{survive to }t + \Delta t|\text{survive to }t)\]</span></p>
-<p>One question that inevitably comes up when computing KM curves is whether two curves are significantly different. For instance, we may have two groups of patients, each on a different medication, and we want to know if the groups have different chances of survival. The log-rank test is one commonly-applied technique to address this question. In this post, we will give a visual demonstration of this key statistical test.</p>
+<p>The Kaplan-Meier (KM) method is one way to estimate the survival curve <span class="math inline">\(S(t)\)</span> of a population based on observed event and censoring times. The method is extremely simple – below we will implement the method using numpy in two lines of code. The basic idea is that the probability of survival <span class="math inline">\(S(t)\)</span> at each time point <span class="math inline">\(t\)</span> is a free parameter to be estimated subject to the condition that <span class="math display">\[S(t+\Delta t) = S(t)P(\text{survive to }t + \Delta t|\text{survive to }t)\]</span></p>
+<p>One question that often comes up when computing KM survival curves is whether two curves are significantly different. For instance, we may have two groups of patients, each group on a different medication, and we want to know if the groups have different chances of survival. The log-rank test is one commonly-applied technique to address this question. In this post, we will give a visual demonstration of this key statistical test.</p>
 </section>
 <section id="problem-setup" class="level2">
 <h2 class="anchored" data-anchor-id="problem-setup">Problem Setup</h2>
-<p>Let’s start by simulating patient data with a known survival curve. Since KM is a non-parametric method, let’s at least use a survival curve that’s complex enough to not be simply modelled by an exponential. An interesting example is a survival curve in which the initial hazard rate is quite large, but over time the hazard decreases, as illustrated below. This example could be applicable to a medication in which most patients experience severe side effects early on, but over time the risk for severe events decreases.</p>
-<div id="01650d6c-2a22-43e7-b176-953b821862a5" class="cell" data-tags="[]" data-execution_count="3">
+<p>We start by simulating patient data with a known survival curve. Since KM is a non-parametric method, let’s at least use a survival curve that’s complex enough to not be simply modelled by an exponential. An interesting example is a survival curve in which the initial hazard rate is quite large, but over time the hazard decreases, as illustrated below. This example could be applicable to a medication in which most patients experience severe side effects early on, but over time the risk for severe events decreases.</p>
+<div id="01650d6c-2a22-43e7-b176-953b821862a5" class="cell" data-tags="[]" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sigmoid(x):</span>
@@ -265,7 +265,7 @@ window.Quarto = {
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    hazard_rate <span class="op">=</span> np.hstack((np.array(<span class="dv">0</span>), hazard_rate[:<span class="op">-</span><span class="dv">1</span>]))</span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.exp(<span class="op">-</span>hazard_rate.cumsum())</span>
 <span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>rate_1 <span class="op">=</span> <span class="fl">1.</span><span class="op">/</span><span class="dv">60</span>     <span class="co"># 1 event per 60 days</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>rate_1 <span class="op">=</span> <span class="fl">1.</span><span class="op">/</span><span class="dv">90</span>     <span class="co"># 1 event per 60 days</span></span>
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>rate_2 <span class="op">=</span> <span class="fl">1.</span><span class="op">/</span><span class="dv">180</span>    <span class="co"># 1 event per year</span></span>
 <span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>observation_time <span class="op">=</span> <span class="dv">365</span> <span class="op">*</span> <span class="dv">5</span></span>
 <span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>transition_time <span class="op">=</span> <span class="dv">90</span></span>
@@ -276,7 +276,7 @@ window.Quarto = {
 <span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>survival_function <span class="op">=</span> survival_function <span class="op">/</span> survival_function[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="cell-fig-survival" class="cell" data-tags="[]" data-execution_count="4">
+<div id="cell-fig-survival" class="cell" data-tags="[]" data-execution_count="3">
 <div class="cell-output cell-output-display">
 <div id="fig-survival" class="quarto-figure quarto-figure-center quarto-float anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -290,8 +290,8 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 </div>
 </div>
 </div>
-<p>Let’s now simulate 100 patients subject to the above survival curve and see that we can use the Kaplan-Meier approach to estimate the true curve.</p>
-<div id="12983c07-12df-4f1b-834a-e71bf924c9ee" class="cell" data-tags="[]" data-execution_count="5">
+<p>Let’s now simulate 100 patients subject to the above survival curve and see that we can use the Kaplan-Meier approach to estimate the survival curve. In generating these data, we also include censoring, that is, patients which leave the study without experiencing an event. The censoring is completely at random with a constant rate.</p>
+<div id="12983c07-12df-4f1b-834a-e71bf924c9ee" class="cell" data-tags="[]" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_survival_times(</span>
@@ -339,7 +339,7 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>cohort_1_events <span class="op">=</span> generate_survival_data(n_patients, survival_function, censor_rate)</span>
 <span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>cohort_1_events</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="5">
+<div class="cell-output cell-output-display" data-execution_count="4">
 <div>
 <div>
 
@@ -357,32 +357,32 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <tr class="odd">
 <td data-quarto-table-cell-role="th">0</td>
 <td>0</td>
-<td>70</td>
+<td>155</td>
 <td>0</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">1</td>
 <td>1</td>
-<td>6</td>
-<td>1</td>
+<td>69</td>
+<td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">2</td>
 <td>2</td>
-<td>67</td>
-<td>1</td>
+<td>23</td>
+<td>0</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">3</td>
 <td>3</td>
-<td>53</td>
+<td>8</td>
 <td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">4</td>
 <td>4</td>
-<td>24</td>
-<td>0</td>
+<td>155</td>
+<td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">...</td>
@@ -393,32 +393,32 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <tr class="odd">
 <td data-quarto-table-cell-role="th">95</td>
 <td>95</td>
-<td>13</td>
+<td>40</td>
 <td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">96</td>
 <td>96</td>
-<td>31</td>
+<td>40</td>
 <td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">97</td>
 <td>97</td>
-<td>40</td>
+<td>87</td>
 <td>1</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">98</td>
 <td>98</td>
-<td>37</td>
+<td>10</td>
 <td>0</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">99</td>
 <td>99</td>
-<td>429</td>
-<td>1</td>
+<td>103</td>
+<td>0</td>
 </tr>
 </tbody>
 </table>
@@ -431,8 +431,8 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 </section>
 <section id="kaplan-meier-curve" class="level2">
 <h2 class="anchored" data-anchor-id="kaplan-meier-curve">Kaplan-Meier Curve</h2>
-<p>In order to calculate the KM curve, we first need to aggregate the patient data by event time as follows:</p>
-<div id="3214d20e-3978-4e0c-9fe5-8b3ffb963d8a" class="cell" data-tags="[]" data-execution_count="6">
+<p>In order to calculate the KM curve, we first aggregate the patient data by event time as follows:</p>
+<div id="3214d20e-3978-4e0c-9fe5-8b3ffb963d8a" class="cell" data-tags="[]" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> aggregate_events(patient_level_events: pd.DataFrame) <span class="op">-&gt;</span> pd.DataFrame:</span>
@@ -451,7 +451,7 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg <span class="op">=</span> aggregate_events(cohort_1_events)</span>
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>cohort_1_events_agg</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="6">
+<div class="cell-output cell-output-display" data-execution_count="5">
 <div>
 <div>
 
@@ -479,28 +479,28 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <td>100</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
-<td>2</td>
+<td data-quarto-table-cell-role="th">2</td>
+<td>1</td>
 <td>0</td>
 <td>100</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
-<td>1</td>
-<td>0</td>
-<td>98</td>
+<td data-quarto-table-cell-role="th">3</td>
+<td>3</td>
+<td>2</td>
+<td>99</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<td data-quarto-table-cell-role="th">4</td>
 <td>1</td>
 <td>0</td>
-<td>97</td>
+<td>94</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
-<td>2</td>
+<td data-quarto-table-cell-role="th">6</td>
+<td>1</td>
 <td>0</td>
-<td>96</td>
+<td>93</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">...</td>
@@ -509,31 +509,31 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <td>...</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">160</td>
-<td>1</td>
+<td data-quarto-table-cell-role="th">217</td>
 <td>0</td>
+<td>1</td>
 <td>5</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">209</td>
-<td>0</td>
+<td data-quarto-table-cell-role="th">300</td>
 <td>1</td>
+<td>0</td>
 <td>4</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">214</td>
-<td>1</td>
+<td data-quarto-table-cell-role="th">310</td>
 <td>0</td>
+<td>1</td>
 <td>3</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">256</td>
-<td>0</td>
+<td data-quarto-table-cell-role="th">332</td>
 <td>1</td>
+<td>0</td>
 <td>2</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">429</td>
+<td data-quarto-table-cell-role="th">342</td>
 <td>0</td>
 <td>1</td>
 <td>1</td>
@@ -541,13 +541,13 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 </tbody>
 </table>
 
-<p>63 rows × 3 columns</p>
+<p>71 rows × 3 columns</p>
 </div>
 </div>
 </div>
 </div>
 <p>Now the calculation of the KM curve is exceedingly simple. In numpy, the calculation requires only two lines of code. The results of the calculation is shown below.</p>
-<div id="206297d3-2d53-4013-997b-933216d62e94" class="cell" data-tags="[]" data-execution_count="7">
+<div id="206297d3-2d53-4013-997b-933216d62e94" class="cell" data-tags="[]" data-execution_count="6">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> estimate_kaplan_meier_survival(</span>
@@ -559,7 +559,7 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> km_estimate</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div id="cell-fig-survival-est" class="cell" data-tags="[]" data-execution_count="8">
+<div id="cell-fig-survival-est" class="cell" data-tags="[]" data-execution_count="7">
 <div class="cell-output cell-output-display">
 <div id="fig-survival-est" class="quarto-figure quarto-figure-center quarto-float anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -567,7 +567,7 @@ Figure&nbsp;1: Theoretical survival curve and hazard rate for toy problem
 <img src="kaplan_meier_log_rank_files/figure-html/fig-survival-est-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-survival-est-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: Test
+Figure&nbsp;2: Comparison of true survival curve to survival curve estimated with Kaplan-Meier.
 </figcaption>
 </figure>
 </div>
@@ -577,8 +577,8 @@ Figure&nbsp;2: Test
 </section>
 <section id="log-rank-test" class="level2">
 <h2 class="anchored" data-anchor-id="log-rank-test">Log-Rank Test</h2>
-<p>To understand the log-rank test, let’s now take this population of 100 patients and randomly split them into two groups. By construction, we know the survival curves for the two subgroups are identical, but we will see random fluctuations in the estimated KM curve.</p>
-<div id="cell-fig-survival-split" class="cell" data-tags="[]" data-execution_count="10">
+<p>To understand the log-rank test, let’s now consider multiple (independent) samples of 100 patients. By construction, we know the survival curves for the two subgroups are identical, but we will see random fluctuations in the estimated KM curve.</p>
+<div id="cell-fig-survival-split" class="cell" data-tags="[]" data-execution_count="9">
 <div class="cell-output cell-output-display">
 <div id="fig-survival-split" class="quarto-figure quarto-figure-center quarto-float anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -586,20 +586,20 @@ Figure&nbsp;2: Test
 <img src="kaplan_meier_log_rank_files/figure-html/fig-survival-split-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-survival-split-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: Test
+Figure&nbsp;3: Random variations in KM estimate due to finite sampling effects
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
-<div id="cell-fig-main" class="cell preview-image" data-tags="[]" data-execution_count="12">
+<div id="cell-fig-main" class="cell preview-image" data-tags="[]" data-execution_count="11">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>lr <span class="op">=</span> []</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">100</span>):</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> random_split_cohort(cohort_1_events)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    lr.append(compute_log_rank(split_agg_1, split_agg_2))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> generate_km_curves_random_cohorts(n_patients, survival_function, censor_rate)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    </span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    ax <span class="op">=</span> sns.lineplot(</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        data<span class="op">=</span>split_agg_1[[<span class="st">'KM Estimate (1)'</span>]], </span>
@@ -636,24 +636,25 @@ Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying po
 </div>
 </div>
 </div>
-<p>Above we show an ensemble of random Kaplan-Meier curves drawn from the same underlying population. The plot shows the individual KM curves, each representing survival data from different random splits of the cohort. For comparison, we have drawn also the true survival function, and we see that variations in the estimated KM curve arise out of finite sampling effects.</p>
-<div id="cell-fig-logrank" class="cell" data-tags="[]" data-execution_count="14">
+<p>Above we show an ensemble of 100 random Kaplan-Meier curves drawn from the same underlying population. The plot shows the individual KM curves, each representing survival data from different random splits of the cohort. For comparison, we have drawn also the true survival function, and we see that variations in the estimated KM curve arise out of finite sampling effects. The variation in these estimated curves indicate the expected variation in the KM estimate under the null hypothesis that the the survival curves are the same.</p>
+<div id="cell-fig-logrank" class="cell" data-tags="[]" data-execution_count="12">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># lr = []</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># for _ in range(1000):</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     split_agg_1, split_agg_2 = random_split_cohort(cohort_1_events)</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     lr.append(compute_log_rank(split_agg_1, split_agg_2))</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 50-50 samples'</span>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lr <span class="op">=</span> []</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1000</span>):</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> generate_km_curves_random_cohorts(n_patients, survival_function, censor_rate)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    df_log_rank, lr_stat <span class="op">=</span> compute_log_rank(split_agg_1, split_agg_2)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    lr.append(lr_stat)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 50-50 samples'</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div id="fig-logrank" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -662,13 +663,170 @@ Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying po
 <img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5: Test
+Figure&nbsp;5: Distribution of log-rank statistic for random samples of 50 patients having the same survival curve.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 <p>Now for each of the ensemble pairs generated in the previous plot, we compute the log-rank statistics. We see that the distribution of the log-rank statistics matches well a <span class="math inline">\(\chi^2\)</span> distribution with one degree-of-freedom.</p>
+<p>To compute the log-rank statistic, we assume that events are distributed randomly between the two groups. For instance, if there are 3 events in a certain time period, 91 patients in group 1 and 49 patients in group 2, then we should expect on average there to be <span class="math inline">\(3 * 50 / 99\)</span> events in group 1 and <span class="math inline">\(3 * 49 / 99\)</span> events in group 2. See the table below.</p>
+<div id="4462fda0-5119-413a-a536-ac0e2b54a6cc" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_log_rank[[<span class="st">'n_events_1'</span>, <span class="st">'at_risk_1'</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_2'</span>, <span class="st">'at_risk_2'</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_all'</span>, <span class="st">'at_risk_all'</span>, <span class="st">'n_events_expected_1'</span>, <span class="st">'observed_minus_expected_1'</span>]].head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">n_events_1</th>
+<th data-quarto-table-cell-role="th">at_risk_1</th>
+<th data-quarto-table-cell-role="th">n_events_2</th>
+<th data-quarto-table-cell-role="th">at_risk_2</th>
+<th data-quarto-table-cell-role="th">n_events_all</th>
+<th data-quarto-table-cell-role="th">at_risk_all</th>
+<th data-quarto-table-cell-role="th">n_events_expected_1</th>
+<th data-quarto-table-cell-role="th">observed_minus_expected_1</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">event_time</th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0.0</td>
+<td>100.0</td>
+<td>0.0</td>
+<td>100.0</td>
+<td>0.0</td>
+<td>200.0</td>
+<td>0.000000</td>
+<td>0.000000</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>1.0</td>
+<td>100.0</td>
+<td>1.0</td>
+<td>100.0</td>
+<td>2.0</td>
+<td>200.0</td>
+<td>1.000000</td>
+<td>0.000000</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>0.0</td>
+<td>100.0</td>
+<td>1.0</td>
+<td>99.0</td>
+<td>1.0</td>
+<td>199.0</td>
+<td>0.502513</td>
+<td>0.502513</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>0.0</td>
+<td>99.0</td>
+<td>0.0</td>
+<td>97.0</td>
+<td>0.0</td>
+<td>196.0</td>
+<td>0.000000</td>
+<td>0.000000</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>0.0</td>
+<td>98.0</td>
+<td>1.0</td>
+<td>95.0</td>
+<td>1.0</td>
+<td>193.0</td>
+<td>0.507772</td>
+<td>0.507772</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>1.0</td>
+<td>97.0</td>
+<td>0.0</td>
+<td>95.0</td>
+<td>1.0</td>
+<td>192.0</td>
+<td>0.505208</td>
+<td>-0.494792</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>0.0</td>
+<td>97.0</td>
+<td>0.0</td>
+<td>94.0</td>
+<td>0.0</td>
+<td>191.0</td>
+<td>0.000000</td>
+<td>0.000000</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>2.0</td>
+<td>96.0</td>
+<td>0.0</td>
+<td>92.0</td>
+<td>2.0</td>
+<td>188.0</td>
+<td>1.021277</td>
+<td>-0.978723</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>1.0</td>
+<td>94.0</td>
+<td>0.0</td>
+<td>91.0</td>
+<td>1.0</td>
+<td>185.0</td>
+<td>0.508108</td>
+<td>-0.491892</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>2.0</td>
+<td>91.0</td>
+<td>1.0</td>
+<td>90.0</td>
+<td>3.0</td>
+<td>181.0</td>
+<td>1.508287</td>
+<td>-0.491713</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</div>
+<p>Now taking the sum of the observed number of events minus the expected number of events, and dividing by an estimate for the variance, we arrive at the log-rank statistic (for details see [1]).</p>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
