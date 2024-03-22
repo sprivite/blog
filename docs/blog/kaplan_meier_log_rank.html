@@ -620,8 +620,9 @@ Figure&nbsp;3: Random variations in KM estimate due to finite sampling effects
 <span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>handles, labels <span class="op">=</span> plt.gca().get_legend_handles_labels()</span>
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>by_label <span class="op">=</span> <span class="bu">dict</span>(<span class="bu">zip</span>(labels, handles))</span>
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>plt.legend(by_label.values(), by_label.keys())</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>ax.set_ylim([<span class="dv">0</span>, <span class="dv">1</span>])</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>ax.set_xlim([<span class="dv">0</span>, <span class="dv">365</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'Survival probability'</span>)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>ax.set_ylim([<span class="dv">0</span>, <span class="dv">1</span>])</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>ax.set_xlim([<span class="dv">0</span>, <span class="dv">365</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div id="fig-main" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -648,7 +649,7 @@ Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying po
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    </span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 50-50 samples'</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 100-100 samples'</span>)</span>
 <span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
 <span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
 <span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
@@ -663,22 +664,22 @@ Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying po
 <img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-1.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5: Distribution of log-rank statistic for random samples of 50 patients having the same survival curve.
+Figure&nbsp;5: Distribution of log-rank statistic for random samples of 100 patients having the same underlying survival curve.
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 <p>Now for each of the ensemble pairs generated in the previous plot, we compute the log-rank statistics. We see that the distribution of the log-rank statistics matches well a <span class="math inline">\(\chi^2\)</span> distribution with one degree-of-freedom.</p>
-<p>To compute the log-rank statistic, we assume that events are distributed randomly between the two groups. For instance, if there are 3 events in a certain time period, 91 patients in group 1 and 49 patients in group 2, then we should expect on average there to be <span class="math inline">\(3 * 50 / 99\)</span> events in group 1 and <span class="math inline">\(3 * 49 / 99\)</span> events in group 2. See the table below.</p>
-<div id="4462fda0-5119-413a-a536-ac0e2b54a6cc" class="cell" data-execution_count="15">
+<p>To compute the log-rank statistic, we assume that events are distributed randomly between the two groups. For instance, if there are 3 events in a certain time period, 91 patients in group 1 and 90 patients in group 2, then we should expect on average there to be <span class="math inline">\(3 * 91 / 181\)</span> events in group 1 and <span class="math inline">\(3 * 90 / 181\)</span> events in group 2. See the table below.</p>
+<div id="4462fda0-5119-413a-a536-ac0e2b54a6cc" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_log_rank[[<span class="st">'n_events_1'</span>, <span class="st">'at_risk_1'</span>,</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_2'</span>, <span class="st">'at_risk_2'</span>,</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_all'</span>, <span class="st">'at_risk_all'</span>, <span class="st">'n_events_expected_1'</span>, <span class="st">'observed_minus_expected_1'</span>]].head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="15">
+<div class="cell-output cell-output-display" data-execution_count="13">
 <div>
 <div>
 
