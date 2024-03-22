@@ -654,48 +654,18 @@ Figure&nbsp;4: An ensemble of random KM curves drawn from the same underlying po
 </div>
 </div>
 <p>Above we show an ensemble of 100 random Kaplan-Meier curves drawn from the same underlying population. The plot shows the individual KM curves, each representing survival data from different random splits of the cohort. For comparison, we have drawn also the true survival function, and we see that variations in the estimated KM curve arise out of finite sampling effects. The variation in these estimated curves indicate the expected variation in the KM estimate under the null hypothesis that the the survival curves are the same.</p>
-<div id="cell-fig-logrank" class="cell" data-tags="[]" data-execution_count="12">
-<details class="code-fold">
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lr <span class="op">=</span> []</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1000</span>):</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> generate_km_curves_random_cohorts(n_patients, survival_function, censor_rate)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    df_log_rank, lr_stat <span class="op">=</span> compute_log_rank(split_agg_1, split_agg_2)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    lr.append(lr_stat)</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 100-100 samples'</span>)</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-display">
-<div id="fig-logrank" class="quarto-figure quarto-figure-center quarto-float anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-1.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5: Distribution of log-rank statistic for random samples of 100 patients having the same underlying survival curve.
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>Now for each of the ensemble pairs generated in the previous plot, we compute the log-rank statistics. We see that the distribution of the log-rank statistics matches well a <span class="math inline">\(\chi^2\)</span> distribution with one degree-of-freedom.</p>
 <p>To compute the log-rank statistic, we assume that events are distributed randomly between the two groups. For instance, if there are 3 events in a certain time period, 91 patients in group 1 and 90 patients in group 2, then we should expect on average there to be <span class="math inline">\(3 * 91 / 181\)</span> events in group 1 and <span class="math inline">\(3 * 90 / 181\)</span> events in group 2. See the table below.</p>
-<div id="4462fda0-5119-413a-a536-ac0e2b54a6cc" class="cell" data-execution_count="13">
+<div id="d34bfe2f-1d3b-41b7-801f-7e27b2f84d12" class="cell" data-execution_count="12">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df_log_rank[[<span class="st">'n_events_1'</span>, <span class="st">'at_risk_1'</span>,</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_2'</span>, <span class="st">'at_risk_2'</span>,</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_all'</span>, <span class="st">'at_risk_all'</span>, <span class="st">'n_events_expected_1'</span>, <span class="st">'observed_minus_expected_1'</span>]].head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>split_agg_1, split_agg_2 <span class="op">=</span> generate_km_curves_random_cohorts(n_patients, survival_function, censor_rate)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>df_log_rank, lr_stat <span class="op">=</span> compute_log_rank(split_agg_1, split_agg_2)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>df_log_rank[[<span class="st">'n_events_1'</span>, <span class="st">'at_risk_1'</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_2'</span>, <span class="st">'at_risk_2'</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>       <span class="st">'n_events_all'</span>, <span class="st">'at_risk_all'</span>, <span class="st">'n_events_expected_1'</span>, <span class="st">'observed_minus_expected_1'</span>]].head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-display" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="12">
 <div>
 <div>
 
@@ -739,102 +709,102 @@ Figure&nbsp;5: Distribution of log-rank statistic for random samples of 100 pati
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">1</td>
-<td>1.0</td>
+<td>0.0</td>
 <td>100.0</td>
-<td>1.0</td>
+<td>0.0</td>
 <td>100.0</td>
-<td>2.0</td>
+<td>0.0</td>
 <td>200.0</td>
-<td>1.000000</td>
+<td>0.000000</td>
 <td>0.000000</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">2</td>
+<td>2.0</td>
+<td>98.0</td>
 <td>0.0</td>
-<td>100.0</td>
-<td>1.0</td>
-<td>99.0</td>
-<td>1.0</td>
-<td>199.0</td>
-<td>0.502513</td>
-<td>0.502513</td>
+<td>98.0</td>
+<td>2.0</td>
+<td>196.0</td>
+<td>1.000000</td>
+<td>-1.000000</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">3</td>
-<td>0.0</td>
-<td>99.0</td>
-<td>0.0</td>
-<td>97.0</td>
-<td>0.0</td>
-<td>196.0</td>
-<td>0.000000</td>
-<td>0.000000</td>
-</tr>
-<tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
+<td>1.0</td>
+<td>96.0</td>
 <td>0.0</td>
 <td>98.0</td>
 <td>1.0</td>
+<td>194.0</td>
+<td>0.494845</td>
+<td>-0.505155</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>3.0</td>
 <td>95.0</td>
-<td>1.0</td>
+<td>0.0</td>
+<td>98.0</td>
+<td>3.0</td>
 <td>193.0</td>
-<td>0.507772</td>
-<td>0.507772</td>
+<td>1.476684</td>
+<td>-1.523316</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">5</td>
+<td>6.0</td>
+<td>92.0</td>
 <td>1.0</td>
-<td>97.0</td>
-<td>0.0</td>
-<td>95.0</td>
-<td>1.0</td>
-<td>192.0</td>
-<td>0.505208</td>
-<td>-0.494792</td>
+<td>98.0</td>
+<td>7.0</td>
+<td>190.0</td>
+<td>3.389474</td>
+<td>-2.610526</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">6</td>
-<td>0.0</td>
+<td>3.0</td>
+<td>86.0</td>
+<td>1.0</td>
 <td>97.0</td>
-<td>0.0</td>
-<td>94.0</td>
-<td>0.0</td>
-<td>191.0</td>
-<td>0.000000</td>
-<td>0.000000</td>
+<td>4.0</td>
+<td>183.0</td>
+<td>1.879781</td>
+<td>-1.120219</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">7</td>
-<td>2.0</td>
-<td>96.0</td>
 <td>0.0</td>
-<td>92.0</td>
-<td>2.0</td>
-<td>188.0</td>
-<td>1.021277</td>
-<td>-0.978723</td>
+<td>83.0</td>
+<td>0.0</td>
+<td>95.0</td>
+<td>0.0</td>
+<td>178.0</td>
+<td>0.000000</td>
+<td>0.000000</td>
 </tr>
 <tr class="odd">
 <td data-quarto-table-cell-role="th">8</td>
 <td>1.0</td>
-<td>94.0</td>
-<td>0.0</td>
-<td>91.0</td>
+<td>82.0</td>
 <td>1.0</td>
-<td>185.0</td>
-<td>0.508108</td>
-<td>-0.491892</td>
+<td>95.0</td>
+<td>2.0</td>
+<td>177.0</td>
+<td>0.926554</td>
+<td>-0.073446</td>
 </tr>
 <tr class="even">
 <td data-quarto-table-cell-role="th">9</td>
-<td>2.0</td>
-<td>91.0</td>
+<td>0.0</td>
+<td>81.0</td>
 <td>1.0</td>
-<td>90.0</td>
-<td>3.0</td>
-<td>181.0</td>
-<td>1.508287</td>
-<td>-0.491713</td>
+<td>93.0</td>
+<td>1.0</td>
+<td>174.0</td>
+<td>0.465517</td>
+<td>0.465517</td>
 </tr>
 </tbody>
 </table>
@@ -843,7 +813,39 @@ Figure&nbsp;5: Distribution of log-rank statistic for random samples of 100 pati
 </div>
 </div>
 </div>
-<p>Now taking the sum of the observed number of events minus the expected number of events, and dividing by an estimate for the variance, we arrive at the log-rank statistic (for details see [1]).</p>
+<p>Now for each of the ensemble pairs generated in the previous plot, we compute the log-rank statistic and plot the histogram of these below. We see that the distribution of the log-rank statistics matches well a <span class="math inline">\(\chi^2\)</span> distribution with one degree-of-freedom. A high value of the log-rank statistic indicates that it is unlikely for the curves to have come from the same underlying survival distribution.</p>
+<div id="cell-fig-logrank" class="cell" data-tags="[]" data-execution_count="13">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>lr <span class="op">=</span> []</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1000</span>):</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    split_agg_1, split_agg_2 <span class="op">=</span> generate_km_curves_random_cohorts(n_patients, survival_function, censor_rate)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    df_log_rank, lr_stat <span class="op">=</span> compute_log_rank(split_agg_1, split_agg_2)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    lr.append(lr_stat)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> chi2</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>,<span class="dv">6</span>))</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> plt.hist(lr, bins<span class="op">=</span>np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">31</span>), density<span class="op">=</span><span class="va">True</span>, label<span class="op">=</span><span class="st">'random 100-100 samples'</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> <span class="fl">0.05</span> <span class="op">+</span> np.linspace(<span class="dv">0</span>, <span class="dv">5</span>, <span class="dv">32</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> [chi2.pdf(x, <span class="dv">1</span>) <span class="cf">for</span> x <span class="kw">in</span> X]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>plt.plot(X, y, linewidth<span class="op">=</span><span class="dv">3</span>, label<span class="op">=</span><span class="st">'chi2 1-dof'</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">'log-rank statistic'</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">'probability density'</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>plt.legend()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-display">
+<div id="fig-logrank" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="kaplan_meier_log_rank_files/figure-html/fig-logrank-output-1.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-logrank-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Distribution of log-rank statistic for random samples of 100 patients having the same underlying survival curve.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
